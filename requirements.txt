@@ -1,0 +1,40 @@
+# F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals
+# Reproduktionsabhaengigkeiten — Stand 2026-05
+#
+# Versionsstrategie:
+#   - Obergrenzen pinnen die Major-Version, um Reproduzierbarkeit
+#     ueber das Embargo-Fenster der WoS-Daten hinaus zu sichern.
+#   - Untergrenzen markieren die minimal getestete API-Kompatibilitaet.
+#
+# Installation (siehe README):
+#   pip install -r requirements.txt
+#   python -m spacy download en_core_web_sm
+
+# Datenverarbeitung
+numpy>=1.24,<2.0
+pandas>=2.0,<3.0
+scipy>=1.10,<2.0
+
+# Topic Modeling / Embeddings
+sentence-transformers>=2.2,<3.0
+torch>=2.0,<3.0
+umap-learn>=0.5,<1.0
+hdbscan>=0.8.33,<0.9
+scikit-learn>=1.3,<2.0
+
+# Textverarbeitung
+spacy>=3.6,<4.0
+nltk>=3.8,<4.0
+
+# Statistik / Faktorenanalyse
+factor_analyzer>=0.5,<1.0
+statsmodels>=0.14,<1.0
+
+# Visualisierung
+matplotlib>=3.7,<4.0
+seaborn>=0.12,<1.0
+plotly>=5.15,<6.0
+
+# Hilfsmodule
+tqdm>=4.65,<5.0
+pyyaml>=6.0,<7.0

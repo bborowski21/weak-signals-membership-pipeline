@@ -1,0 +1,75 @@
+# =============================================================================
+# F3-Pipeline — .gitignore
+# =============================================================================
+# Ziel: Repository enthaelt ausschliesslich Code, Konfiguration und
+# Dokumentation. Daten, Outputs und Cache-Artefakte bleiben lokal.
+# =============================================================================
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+.installed.cfg
+
+# --- Virtuelle Umgebungen --------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# --- Jupyter / IDEs --------------------------------------------------------
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Tests / Coverage ------------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Pipeline-Outputs (werden lokal regeneriert) ---------------------------
+output_phase1/
+output_phase2/
+output_cross_phase/
+output_sensitivity/
+logs/
+*.log
+
+# --- Modell- und Embedding-Caches ------------------------------------------
+*.pkl
+*.joblib
+*.npz
+embeddings_cache/
+sbert_cache/
+
+# --- Rohdaten (lizenzpflichtig, nicht im Repo) -----------------------------
+data/
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+# Ausnahme: synthetische Demo-Daten und Testfixtures
+!data/synthetic_demo.csv
+!tests/fixtures/*.csv
+
+# --- Konfig-Overrides (lokal) ----------------------------------------------
+config.local.py
+.env
+.env.*
+
+# --- Betriebssystem --------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
