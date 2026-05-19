@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python ≥3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue.svg)](https://www.python.org/downloads/)
 
-Reproduktionscode zur Masterarbeit *Weak Signals in Foresight: Eine
-mehrdimensionale, membership-basierte Operationalisierung* (Ben Borowski,
+Reproduktionscode zur Masterarbeit *Weak Signals in Foresight: Ein Operationalisierungsframework für Frühindikatoren
+potenzieller Entwicklungen* (Ben Borowski,
 Data Science & Analytics, 2026). Die Pipeline operationalisiert das in F2
 entwickelte fünfdimensionale Framework über 16 bibliometrische Indikatoren
 und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
