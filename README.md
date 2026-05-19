@@ -1,5 +1,9 @@
 # F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20283613.svg)](https://doi.org/10.5281/zenodo.20283613)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python ≥3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue.svg)](https://www.python.org/downloads/)
+
 Reproduktionscode zur Masterarbeit *Weak Signals in Foresight: Eine
 mehrdimensionale, membership-basierte Operationalisierung* (Ben Borowski,
 Data Science & Analytics, 2026). Die Pipeline operationalisiert das in F2
@@ -12,8 +16,22 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
 
 > Borowski, B. (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals*. Version 1.0. GitHub-Repository.
-> DOI: *(Zenodo-DOI nach Submission ergänzen)*
+> von Weak Signals* (Version v1.0-thesis) [Software]. Zenodo.
+> https://doi.org/10.5281/zenodo.20283613
+
+BibTeX:
+
+```bibtex
+@software{borowski_pipeline_2026,
+  author    = {Borowski, Ben},
+  title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
+  version   = {v1.0-thesis},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.20283613},
+  url       = {https://doi.org/10.5281/zenodo.20283613}
+}
+```
 
 ## Architektur
 
