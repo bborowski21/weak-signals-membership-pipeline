@@ -44,30 +44,37 @@ Erzeugt:
 Autor: Ben Borowski
 """
 
+import os
 from pathlib import Path
 
 import pandas as pd
 
 # =============================================================================
-# PFADE — anpassen, falls die KATI-Daten woanders liegen
+# PFADE — KATI-Datenverzeichnis konfigurierbar via Umgebungsvariable
 # =============================================================================
+#
+# Setze die Umgebungsvariable ``KATI_DATA_DIR`` auf das Verzeichnis, das
+# die beiden Phasen-Unterordner ("Phase 1 2000-2015", "Phase 2 2016-2025")
+# enthaelt. Standard-Fallback: ``./data/kati`` relativ zum Repository-Root.
+#
+# Beispiel:
+#     export KATI_DATA_DIR="/pfad/zu/Data Kati"
+#     python prepare_kati_data.py
+#
+# Der eigentliche WoS/KATI-Korpus ist aus Lizenzgruenden nicht im
+# Repository enthalten; siehe README.md ("Daten").
 
-# Quelle: KATI-Lieferung. Erste vorhandene Variante wird verwendet.
-# Aktuelle Struktur: zwei Phasen-Unterordner ("Phase 1 2000-2015",
-# "Phase 2 2016-2025") direkt unter "Data Kati/".
+_REPO_ROOT = Path(__file__).resolve().parent
+_DEFAULT_KATI_PATH = _REPO_ROOT / "data" / "kati"
+
 KATI_BASE_CANDIDATES = [
-    # Lokal auf Bens Mac:
-    Path(
-        "/Users/benborowski/Desktop/Masterthesis_Claude/"
-        "Masterthesis - Weak Signals in Foresight/Data Kati"
-    ),
-    # Cowork-Sandbox (zur Vorab-Verifikation):
-    Path(
-        "/sessions/quirky-peaceful-shannon/mnt/Masterthesis_Claude/"
-        "Masterthesis - Weak Signals in Foresight/Data Kati"
-    ),
+    Path(os.environ["KATI_DATA_DIR"]) if "KATI_DATA_DIR" in os.environ else None,
+    _DEFAULT_KATI_PATH,
 ]
-KATI_BASE = next((p for p in KATI_BASE_CANDIDATES if p.exists()), None)
+KATI_BASE = next(
+    (p for p in KATI_BASE_CANDIDATES if p is not None and p.exists()),
+    None,
+)
 
 # Ziel-Verzeichnis: gleiche Ebene wie das bestehende
 # scopus_f3_v2_original.csv, damit DATA_PATH in config.py minimal-invasiv
