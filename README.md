@@ -89,6 +89,22 @@ embargobedingten Gründen ist der Korpus nicht Teil des Repositories.
 Die Pipeline ist jedoch reproduzierbar auf jeder WoS-Lieferung, die
 die 17 in der Methoden-Sektion 3.1.2 dokumentierten Felder umfasst.
 
+### Indikator-Datenstatus (Mai-2026-Lieferung)
+
+Die KATI-Mai-2026-Tranche liefert *Adress Org* (Affiliations + Addresses)
+und *Countries* (algorithmisch bereinigte ISO-3-Codes). Daraus folgt:
+
+- **Aktiv** (15 von 16 Indikatoren): alle EO-, WP-, WN-Indikatoren sowie
+  `DI2` (institutionelle Konzentration; via Affiliations) und `DI3`
+  (geografische Konzentration; via ISO-3-Country-List bzw. Addresses).
+- **Blockiert** (NaN-Fallback, kein Pipeline-Abbruch):
+  - `DI1` (Autoren-Konzentration) — benötigt `Author Full Names` / ORCIDs.
+  - Schritt 2b (`step02b_reference_overlap.py`, Zitations-Kohärenz $\rho_t$)
+    — benötigt `Cited References`.
+
+Beide Felder fehlen im aktuellen WoS-Export; die zugehörigen Funktionen
+werden bei späterer Datenverfügbarkeit ohne Code-Änderung aktiv.
+
 Ein synthetischer Mini-Korpus zum Smoke-Test der Pipeline kann über
 `generate_synthetic_artifacts.py` erzeugt werden:
 
