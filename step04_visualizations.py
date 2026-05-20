@@ -122,10 +122,21 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
     - y-Achse: Annualized Growth Rate
     - Farbe: Signaltyp
     - Bubble-Größe: Epistemische Offenheit
+    - Outline/Alpha: Margin-Codierung (klar / Übergang / mehrdeutig)
+
+    Topic-Beschriftungen werden bewusst nicht eingezeichnet — die hohe Topic-
+    Dichte im Quadranten unten-links macht jede individuelle Label-Annotation
+    in der TEM-Sicht unlesbar (Overplotting). Die topic-genaue Lesart erfolgt
+    ueber dimension_heatmap.png und membership_heatmap.png; die TEM bleibt
+    eine reine Struktur- und Verteilungssicht.
     """
+    # topic_keywords wird nicht mehr fuer Annotationen benoetigt, der Parameter
+    # bleibt aus Kompatibilitaetsgruenden zur Aufrufstelle erhalten.
+    del topic_keywords  # explizit als ungenutzt markieren
     tem = tem_metrics.copy().set_index("topic")
     merged = tem.join(
-        classified[["signal_type", "Epistemische Offenheit"]], how="inner"
+        classified[["signal_type", "Epistemische Offenheit", "margin"]],
+        how="inner",
     )
 
     fig, ax = plt.subplots(1, 1, figsize=(14, 10))
@@ -136,46 +147,95 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
     ax.axhline(y=y_thresh, color="gray", linestyle="--", alpha=0.4)
     ax.axvline(x=x_thresh, color="gray", linestyle="--", alpha=0.4)
 
-    # Quadrantenbeschriftung
-    props = dict(fontsize=11, alpha=0.3, fontweight="bold")
-    xlim_r = merged["avg_proportion"].max() * 1.1
-    ylim_t = merged["growth_rate"].max() * 1.1
-    ylim_b = merged["growth_rate"].min() * 1.1
+    # Quadrantenbeschriftung — fest in den Plot-Ecken positioniert
+    # (axes-relative Koordinaten via transAxes), damit sie unabhaengig von
+    # der Datenwolke keine Bubbles ueberlagern.
+    props = dict(fontsize=11, alpha=0.35, fontweight="bold",
+                 transform=ax.transAxes)
+    ax.text(0.015, 0.985,
+            "WEAK SIGNAL\n(geringe Proportion, hohes Wachstum)",
+            ha="left", va="top", **props)
+    ax.text(0.985, 0.985,
+            "STRONG SIGNAL\n(hohe Proportion, hohes Wachstum)",
+            ha="right", va="top", **props)
+    ax.text(0.015, 0.015,
+            "LATENT\n(geringe Proportion, Rückgang)",
+            ha="left", va="bottom", **props)
+    ax.text(0.985, 0.015,
+            "ESTABLISHED\n(hohe Proportion, Rückgang)",
+            ha="right", va="bottom", **props)
 
-    ax.text(x_thresh * 0.3, ylim_t * 0.85,
-            "WEAK SIGNAL\n(geringe Proportion, hohes Wachstum)", ha="center", **props)
-    ax.text(xlim_r * 0.7, ylim_t * 0.85,
-            "STRONG SIGNAL\n(hohe Proportion, hohes Wachstum)", ha="center", **props)
-    ax.text(x_thresh * 0.3, ylim_b * 0.7,
-            "LATENT\n(geringe Proportion, Rückgang)", ha="center", **props)
-    ax.text(xlim_r * 0.7, ylim_b * 0.7,
-            "ESTABLISHED\n(hohe Proportion, Rückgang)", ha="center", **props)
-
-    # Bubbles plotten
+    # Bubbles plotten — Margin steuert Alpha und Outline:
+    #   Margin >= 0.10 : klare Argmax-Zuordnung (opak, weiße Outline)
+    #   0.05 <= Margin < 0.10 : Übergangsfall (transparenter, gestrichelte
+    #                           Outline) — Quadrantenzuordnung interpretativ
+    #                           offen
+    #   Margin < 0.05 : konstitutiv mehrdeutig (am durchscheinendsten,
+    #                   gestrichelte Outline) — Quadrantenposition ist hier
+    #                   nicht als Klassifikation, sondern als Profil zu lesen.
     for idx, row in merged.iterrows():
         color = SIGNAL_COLORS.get(row["signal_type"], "#999999")
         eo = row["Epistemische Offenheit"]
         size = 50 + abs(eo) * 300
+        m_val = float(row["margin"]) if not pd.isna(row["margin"]) else 0.0
+        if m_val >= 0.10:
+            b_alpha, b_edge, b_lw, b_ls = 0.70, "white", 0.5, "solid"
+        elif m_val >= 0.05:
+            b_alpha, b_edge, b_lw, b_ls = 0.50, "#333333", 0.8, "dashed"
+        else:
+            b_alpha, b_edge, b_lw, b_ls = 0.30, "#666666", 0.8, "dashed"
 
         ax.scatter(row["avg_proportion"], row["growth_rate"],
-                   s=size, c=color, alpha=0.6, edgecolors="white", linewidth=0.5)
+                   s=size, c=color, alpha=b_alpha,
+                   edgecolors=b_edge, linewidth=b_lw, linestyle=b_ls)
 
-        # Annotation für auffällige Topics
-        if abs(row["growth_rate"]) > 0.2 or row["avg_proportion"] > x_thresh * 1.5:
-            kws = topic_keywords.get(idx, [])
-            label = ", ".join([w for w, _ in kws[:2]]) if kws else f"T{idx}"
-            ax.annotate(label, (row["avg_proportion"], row["growth_rate"]),
-                        fontsize=7, alpha=0.8, xytext=(5, 5),
-                        textcoords="offset points")
+    # Legende — drei Gruppen (Signaltyp / EO-Skala / Margin), durch leere
+    # Spacer-Eintraege visuell getrennt und ausserhalb des Plotbereichs
+    # platziert, damit jeder Eintrag ausreichend vertikalen Raum hat und keine
+    # Datenpunkte mehr ueberdeckt werden.
+    spacer = mpatches.Patch(color="none", label="")
+    header_signal = mpatches.Patch(color="none", label="$\\bf{Signaltyp}$")
+    header_eo     = mpatches.Patch(color="none", label="$\\bf{Bubble\\!-\\!Groesse:\\ EO}$")
+    header_margin = mpatches.Patch(color="none", label="$\\bf{Outline\\!/Alpha:\\ Margin}$")
 
-    # Legende
-    handles = [mpatches.Patch(color=c, label=l, alpha=0.6)
-               for l, c in SIGNAL_COLORS.items()]
-    handles.append(plt.scatter([], [], s=50, c="gray", alpha=0.5,
+    handles = [header_signal]
+    handles += [mpatches.Patch(color=c, label=l, alpha=0.6)
+                for l, c in SIGNAL_COLORS.items()]
+    handles.append(spacer)
+    handles.append(header_eo)
+    # EO-Skala: vergroesserter Spannweiten-Kontrast (80 vs 500) — die
+    # Plot-Skalierung bleibt 50 + |EO|*300; das Legenden-Sample dient
+    # schematisch der Verdeutlichung der Spannweite.
+    handles.append(plt.scatter([], [], s=80, c="gray", alpha=0.5,
+                               edgecolors="#666666", linewidth=0.4,
                                label="Niedrige EO"))
-    handles.append(plt.scatter([], [], s=300, c="gray", alpha=0.5,
+    handles.append(plt.scatter([], [], s=500, c="gray", alpha=0.5,
+                               edgecolors="#666666", linewidth=0.4,
                                label="Hohe EO"))
-    ax.legend(handles=handles, loc="upper right", fontsize=9)
+    handles.append(spacer)
+    handles.append(header_margin)
+    # Margin ≥ 0.10: im Plot weisse Outline (Kontrast zur farbigen Bubble);
+    # in der Legende dezent dunkelgraue Outline, damit der Eintrag auf weissem
+    # Hintergrund ueberhaupt sichtbar bleibt. Schematische Abweichung zur
+    # Plot-Darstellung ist hier gerechtfertigt — die Funktion ist die gleiche.
+    handles.append(plt.scatter([], [], s=120, c="gray", alpha=0.70,
+                               edgecolors="#444444", linewidth=0.8,
+                               label="Margin ≥ 0.10 (klar)"))
+    handles.append(plt.scatter([], [], s=120, c="gray", alpha=0.50,
+                               edgecolors="#333333", linewidth=0.8,
+                               linestyle="dashed",
+                               label="0.05 ≤ Margin < 0.10 (Übergang)"))
+    handles.append(plt.scatter([], [], s=120, c="gray", alpha=0.30,
+                               edgecolors="#666666", linewidth=0.8,
+                               linestyle="dashed",
+                               label="Margin < 0.05 (mehrdeutig)"))
+
+    ax.legend(
+        handles=handles,
+        loc="upper left", bbox_to_anchor=(1.02, 1.0),
+        fontsize=10, labelspacing=0.9, borderaxespad=0.0,
+        frameon=False, handlelength=2.0,
+    )
 
     ax.set_xlabel("Average Topic Proportion (p̄)", fontsize=12)
     ax.set_ylabel("Annualized Growth Rate (g)", fontsize=12)
@@ -203,12 +263,15 @@ def plot_dimension_heatmap(classified: pd.DataFrame, topic_keywords: dict,
     sorted_df["type_order"] = sorted_df["signal_type"].map(type_order)
     sorted_df = sorted_df.sort_values(["type_order", "ws_distance"])
 
-    # Labels erstellen
+    # Labels erstellen — Margin (Δ) wird mit ausgewiesen, analog zur
+    # Membership-Heatmap. So bleibt die Eindeutigkeit der Argmax-Zuordnung
+    # pro Zeile auch in der Dimensions-Sicht direkt ablesbar.
     labels = []
     for idx in sorted_df.index:
         kws = topic_keywords.get(idx, [])
         kw_str = ", ".join([w for w, _ in kws[:2]]) if kws else f"T{idx}"
-        labels.append(f"T{idx}: {kw_str[:30]}")
+        margin = sorted_df.loc[idx, "margin"]
+        labels.append(f"T{idx}: {kw_str[:30]} (Δ={margin:.2f})")
 
     fig, ax = plt.subplots(1, 1,
                            figsize=(12, max(16, len(sorted_df) * 0.15)))

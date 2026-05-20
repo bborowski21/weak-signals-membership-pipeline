@@ -145,11 +145,18 @@ def _load_matches(prefer_mutual: bool = True) -> pd.DataFrame:
 # =============================================================================
 
 def _bezier_ribbon(ax, x0, y0_top, y0_bot, x1, y1_top, y1_bot,
-                   color, alpha):
+                   color, alpha, hatch=None):
     """Zeichnet ein Sankey-Band zwischen zwei vertikalen Schlitzen.
 
     (x0, [y0_bot, y0_top]) -> (x1, [y1_bot, y1_top])
     Beide Kanten als kubische Bezier-Kurven.
+
+    Parameter
+    ---------
+    hatch : str | None
+        Optionales matplotlib-Hatchmuster (z.B. "//") zur Kennzeichnung
+        knapper Migrationen (Margin < 0.10 in mindestens einer Phase). None
+        rendert ein vollflaechiges Band ohne Mustering.
     """
     mid = (x0 + x1) / 2.0
     verts = [
@@ -166,10 +173,18 @@ def _bezier_ribbon(ax, x0, y0_top, y0_bot, x1, y1_top, y1_bot,
         Path.CURVE4, Path.CURVE4, Path.CURVE4,
         Path.CLOSEPOLY,
     ]
-    patch = mpatches.PathPatch(
-        Path(verts, codes),
-        facecolor=color, edgecolor="none", alpha=alpha,
-    )
+    if hatch is None:
+        patch = mpatches.PathPatch(
+            Path(verts, codes),
+            facecolor=color, edgecolor="none", alpha=alpha,
+        )
+    else:
+        # Gehatchtes Band: feiner weisser Rand erhoeht Kontrast zum Muster.
+        patch = mpatches.PathPatch(
+            Path(verts, codes),
+            facecolor=color, edgecolor="white", alpha=alpha,
+            hatch=hatch, linewidth=0.0,
+        )
     ax.add_patch(patch)
 
 
@@ -180,19 +195,33 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
     Bandbreite ~ Anzahl gematchter Topics in der Zelle.
     Alpha ~ mittlere Match-Cosine in der Zelle.
     """
-    # Match-Tabelle mit P1- und P2-Klasse anreichern
+    # Match-Tabelle mit P1- und P2-Klasse + Margin anreichern.
+    # Eine Migration gilt als "knapp", wenn in mindestens einer der beiden
+    # Phasen die Margin < 0.10 ist (operative Schwelle aus
+    # step02b_memberships.py). Ohne diese Differenzierung wuerde die
+    # argmax-basierte Sankey-Darstellung knappe Membership-Wechsel optisch
+    # identisch zu eindeutigen Klassenwechseln darstellen — was der in V2
+    # zurueckgewiesenen kategorialen Reifizierung entspraeche.
     m = matches.copy()
     m["p1_class"] = m["phase1_topic"].map(df_p1["signal_type"])
     m["p2_class"] = m["phase2_topic"].map(df_p2["signal_type"])
+    m["margin_p1"] = m["phase1_topic"].map(df_p1["margin"])
+    m["margin_p2"] = m["phase2_topic"].map(df_p2["margin"])
+    m["is_knapp"] = (
+        (m["margin_p1"].fillna(0.0) < 0.10)
+        | (m["margin_p2"].fillna(0.0) < 0.10)
+    )
     m = m.dropna(subset=["p1_class", "p2_class"])
 
-    # Aggregation pro Zelle
+    # Aggregation pro Zelle — getrennt nach klar / knapp.
     cell = (
         m.groupby(["p1_class", "p2_class"])
          .agg(count=("phase1_topic", "size"),
+              n_knapp=("is_knapp", "sum"),
               mean_cos=("cosine", "mean"))
          .reset_index()
     )
+    cell["n_clear"] = cell["count"] - cell["n_knapp"]
 
     # Klassen-Layout
     cls = SIGNAL_ORDER
@@ -266,36 +295,55 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
                 f"{cls_name}\n(n={n})", ha="left", va="center",
                 fontsize=10, fontweight="bold")
 
-    # Verbindungsbaender
+    # Verbindungsbaender — pro Zelle wird zuerst der klare Anteil
+    # (Margin >= 0.10 in beiden Phasen) als Vollband gerendert, anschliessend
+    # der knappe Anteil als gehatchtes Band. So bleibt die Bandbreite-Summe
+    # informationserhaltend, waehrend die Margin-Codierung pro Zelle direkt
+    # ablesbar wird.
     for _, row in cell.iterrows():
         i, j = int(row["i"]), int(row["j"])
-        h = row["count"] / total
+        n_clear = int(row["n_clear"])
+        n_knapp = int(row["n_knapp"])
         color = SIGNAL_COLORS.get(row["p1_class"], "#999999")
         # Alpha aus Cosine (0.3 .. 0.85)
         cos = float(row["mean_cos"]) if not pd.isna(row["mean_cos"]) else 0.5
         alpha = 0.30 + 0.55 * np.clip(cos, 0.0, 1.0)
 
-        # Vom Cursor abziehen
-        y0_top = p1_cursor[i]
-        y0_bot = y0_top - h
-        p1_cursor[i] = y0_bot
+        if n_clear > 0:
+            h_clear = n_clear / total
+            y0_top = p1_cursor[i]
+            y0_bot = y0_top - h_clear
+            p1_cursor[i] = y0_bot
+            y1_top = p2_cursor[j]
+            y1_bot = y1_top - h_clear
+            p2_cursor[j] = y1_bot
+            _bezier_ribbon(ax, x_left, y0_top, y0_bot,
+                           x_right, y1_top, y1_bot,
+                           color, alpha)
 
-        y1_top = p2_cursor[j]
-        y1_bot = y1_top - h
-        p2_cursor[j] = y1_bot
-
-        _bezier_ribbon(ax, x_left, y0_top, y0_bot,
-                       x_right, y1_top, y1_bot,
-                       color, alpha)
+        if n_knapp > 0:
+            h_knapp = n_knapp / total
+            y0_top = p1_cursor[i]
+            y0_bot = y0_top - h_knapp
+            p1_cursor[i] = y0_bot
+            y1_top = p2_cursor[j]
+            y1_bot = y1_top - h_knapp
+            p2_cursor[j] = y1_bot
+            _bezier_ribbon(ax, x_left, y0_top, y0_bot,
+                           x_right, y1_top, y1_bot,
+                           color, alpha, hatch="//")
 
     # Cosmetics
     ax.set_xlim(0, 1)
-    ax.set_ylim(-0.02, 1.10)
+    ax.set_ylim(-0.10, 1.10)
     ax.set_aspect("auto")
     ax.axis("off")
+    n_total_knapp = int(m["is_knapp"].sum())
+    n_total_clear = int(len(m) - n_total_knapp)
     ax.set_title(
         f"Membership-Migrations-Sankey: Phase 1 -> Phase 2\n"
-        f"({len(m)} gematchte Topics; Alpha ~ Match-Cosine)",
+        f"({len(m)} gematchte Topics; Alpha ~ Match-Cosine; "
+        f"Hatch ~ knappe Migration, Margin < 0.10 in P1 oder P2)",
         fontsize=13, pad=15,
     )
     # Beschriftung der Achsen-Endpunkte
@@ -304,12 +352,31 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
     ax.text(x_right + box_w / 2.0, 1.06, "Phase 2\n(2016-2025)",
             ha="center", va="bottom", fontsize=11, fontweight="bold")
 
+    # Legende: klare vs. knappe Migration (Margin-Codierung)
+    legend_clear = mpatches.Patch(
+        facecolor="#888888", alpha=0.6, edgecolor="none",
+        label=f"Klare Migration (Margin ≥ 0.10 in beiden Phasen): "
+              f"n={n_total_clear}",
+    )
+    legend_knapp = mpatches.Patch(
+        facecolor="#888888", alpha=0.6, edgecolor="white", hatch="//",
+        label=f"Knappe Migration (Margin < 0.10 in P1 oder P2): "
+              f"n={n_total_knapp}",
+    )
+    ax.legend(
+        handles=[legend_clear, legend_knapp],
+        loc="lower center", bbox_to_anchor=(0.5, -0.06),
+        ncol=2, fontsize=9, frameon=False,
+    )
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=FIG_DPI, bbox_inches="tight")
     plt.close()
     print(f"  Sankey gespeichert: {output_path}")
     return {
         "n_matches": int(len(m)),
+        "n_clear": n_total_clear,
+        "n_knapp": n_total_knapp,
         "cells": cell.to_dict(orient="records"),
     }
 
