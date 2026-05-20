@@ -68,6 +68,34 @@ python run_cross_phase_viz.py             # Cross-Phase: Sankey, Shift-Heatmap, 
 python run_phase_sensitivity.py 1         # OAT-Sensitivität Phase 1
 ```
 
+### Visualisierungs-Codierungen (Schritte 4 und 4c)
+
+Die phaseninternen und phasenübergreifenden Visualisierungen tragen die
+in `step02b_memberships.py` operativ verankerten Margin-Schwellen
+($\Delta = m_{(1)} - m_{(2)}$) als zusätzliche Codierungsebene:
+
+- **`dimension_heatmap.png`** — Topic-Labels enthalten `(Δ=...)` analog
+  zur Membership-Heatmap. Die Eindeutigkeit der Argmax-Zuordnung pro
+  Zeile bleibt damit direkt ablesbar.
+- **`extended_tem.png`** — Bubble-Alpha und Outline-Stil codieren drei
+  Margin-Stufen: $\Delta \geq 0{,}10$ opak/weiße Outline (klar);
+  $0{,}05 \leq \Delta < 0{,}10$ transparent gestrichelt (Übergang);
+  $\Delta < 0{,}05$ durchscheinend gestrichelt (mehrdeutig). Die
+  Farbe codiert weiterhin den Signaltyp, die Bubble-Größe die
+  Epistemische Offenheit. Quadrantenlabels sitzen in den Plot-Ecken;
+  die Legende ist außerhalb des Datenbereichs platziert.
+- **`migration_sankey.png`** (cross-phase) — Bänder pro
+  Argmax-Migration sind in einen klaren Anteil
+  ($\Delta \geq 0{,}10$ in beiden Phasen, vollflächig) und einen
+  knappen Anteil ($\Delta < 0{,}10$ in P1 oder P2, gehatched `//`)
+  aufgeteilt. Die argmax-reduzierte Sankey-Sicht wird damit gegenüber
+  knappen Klassenwechseln transparent.
+
+Diese Codierung implementiert die in Kapitel 5 der Masterarbeit
+(Abschnitt *Dreistufige Margin-Lesart*) entwickelte Interpretationsskala
+auch visuell und vermeidet, dass die argmax-Reduktion die in V2
+zurückgewiesene kategoriale Reifizierung visuell reproduziert.
+
 ## Installation
 
 Python ≥ 3.10. Empfohlen: Virtual Environment.
