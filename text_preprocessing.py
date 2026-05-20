@@ -1,26 +1,3 @@
-"""
-Text-Preprocessing-Utilities für die SBERT-Pipeline
-====================================================
-
-Reine Hilfsfunktionen für die Bereinigung von Title- und Abstract-Text vor
-dem Einsatz in SBERT-Embedding und c-TF-IDF-Topic-Repräsentation.
-
-Motivation (empirisch fundiert):
-  Die Phase-2-Topic-Modeling-Ergebnisse haben "usepackage" als Top-Cumulative-
-  Keyword aufgedeckt. Ursache: Einige WoS-Abstracts enthalten LaTeX-Reste
-  (\\usepackage{...}, \\cite{...}, $...$ etc.), die als gewöhnliche Wörter
-  in die TF-IDF-Repräsentation einfließen und Topic-Keywords verzerren.
-
-Designprinzip:
-  Kein Information-Loss: nur eindeutig nicht-semantische Marker werden
-  entfernt. Inhaltliche Begriffe (auch fachspezifische Akronyme, Formel-
-  Variablen in Klartext) bleiben erhalten.
-
-Funktionen sind reine Funktionen ohne Seiteneffekte und einzeln testbar.
-
-Autor: Ben Borowski (vorbereitet im Cowork-Modus)
-"""
-
 from __future__ import annotations
 
 import re
