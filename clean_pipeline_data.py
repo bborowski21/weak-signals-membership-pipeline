@@ -24,7 +24,7 @@ Schalter zum produktiven Einsatz:
   Nach erfolgreichem Lauf in run_phase.py die PHASES-Datenpfade auf die
   *_clean.csv-Versionen umstellen (1 Zeile pro Phase).
 
-Autor: Ben Borowski (vorbereitet im Cowork-Modus)
+Autor: Ben Borowski
 """
 
 from __future__ import annotations
