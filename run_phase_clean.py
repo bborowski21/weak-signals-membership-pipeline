@@ -29,7 +29,7 @@ sollte VOR dem Lauf:
 Pipeline-Module (config.py, step01_topic_modeling.py) bleiben unverändert —
 DATA_PATH und OUTPUT_DIR werden zur Laufzeit gepatcht.
 
-Autor: Ben Borowski (vorbereitet im Cowork-Modus)
+Autor: Ben Borowski
 """
 
 from __future__ import annotations
