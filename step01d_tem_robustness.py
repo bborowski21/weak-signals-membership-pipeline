@@ -37,7 +37,7 @@ Aufruf:
     python step01d_tem_robustness.py --phase 2 --auto-trim   # automatisch trimmen
     python step01d_tem_robustness.py --diagnose-only --phase 2
 
-Autor: Ben Borowski (vorbereitet im Cowork-Modus)
+Autor: Ben Borowski
 """
 
 from __future__ import annotations
