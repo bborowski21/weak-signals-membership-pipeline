@@ -302,8 +302,16 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
 
         kws = topic_keywords.get(idx, [])
         kw_str = ", ".join([w for w, _ in kws[:3]])
-        ax.set_title(f"T{idx}: {kw_str[:35]}\nWS-dist={row['ws_distance']:.2f}",
-                      fontsize=10, pad=15)
+
+        # Margin: m_ws − max(m_trend, m_ec, m_latent) als Diagnostik
+        # der Eindeutigkeit der WS-Interpretation (kleine Margin = Übergangsfall).
+        other_max = max(row["m_trend"], row["m_ec"], row["m_latent"])
+        margin = row["m_ws"] - other_max
+        ax.set_title(
+            f"T{idx}: {kw_str[:35]}\n"
+            f"WS-dist={row['ws_distance']:.2f}; Margin={margin:.2f}",
+            fontsize=10, pad=15,
+        )
 
     for j in range(i + 1, len(axes)):
         axes[j].set_visible(False)
