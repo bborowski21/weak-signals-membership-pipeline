@@ -42,7 +42,7 @@ Aufruf:
     python step01c_cross_phase_matching.py --alpha 0.5 --topk 15
     python step01c_cross_phase_matching.py --threshold 0.3   # Konfidenz-Schwelle
 
-Autor: Ben Borowski (vorbereitet im Cowork-Modus)
+Autor: Ben Borowski
 """
 
 from __future__ import annotations
