@@ -25,9 +25,10 @@ Die Spaltennamen werden exakt auf die kanonischen WoS-Spalten in
 ``config.WOS_COLUMNS`` abgebildet, damit step02_indicators.py via CANON_COLUMNS
 ohne Sonderbehandlung lesen kann.
 
-Felder, die in der KATI-Lieferung nicht enthalten sind (Author Full Names,
-ORCIDs, Cited References), werden als leere Spalten ergänzt; die zugehörigen
-Indikatoren (DI1, Schritt 2b) liefern NaN, ohne die Pipeline abzubrechen.
+Mit der Mai-2026-Tranche von Dr. John liegen Author Full Names und ORCIDs
+nun vor; DI1 ist damit operativ. Cited References werden nicht als
+Indikator-Eingang verwendet (Validierungs-Spur, separat zu evaluieren) und
+bleiben als leere Spalte erhalten, ohne die Pipeline abzubrechen.
 
 Citation Topics werden nicht als Indikator verwendet, sondern als deskriptive
 Charakterisierungsschicht für die Ergebnisinterpretation (step04
@@ -124,9 +125,10 @@ PIPELINE_OUTPUT_COLUMNS = [
     "Citation Topic Macro",  # ← KATI: cTopicLabel where type=macro
     "Citation Topic Meso",   # ← KATI: cTopicLabel where type=meso
     "Citation Topic Micro",  # ← KATI: cTopicLabel where type=micro
-    # Noch ausstehende Felder (DI1, Schritt 2b) — Platzhalter:
-    "Author Full Names",
-    "ORCIDs",
+    # Authors + ORCIDs (DI1) — Dr. John Lieferung Mai 2026
+    "Author Full Names",     # ← KATI Authors ORCID: author (wide, sem.-getr.)
+    "ORCIDs",                # ← KATI Authors ORCID: WoS-Format Name/ORCID
+    # Cited References (Validierungs-Spur, kein Indikator-Eingang)
     "Cited References",
 ]
 
@@ -144,7 +146,7 @@ def _read_kati_csv(path: Path) -> pd.DataFrame:
     df.columns = [c.strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
 
-    for col in df.select_dtypes(include="object").columns:
+    for col in df.select_dtypes(include=["object", "string"]).columns:
         df[col] = df[col].astype(str).str.strip()
         df.loc[df[col].isin({"nan", "None", ""}), col] = ""
 
@@ -407,6 +409,66 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["Citation Topic Meso"] = ""
         df["Citation Topic Micro"] = ""
 
+    # --- Authors + ORCIDs (DI1) — Dr. John Lieferung Mai 2026 ---
+    # Long format: eine Zeile pro (Publikation, Autor); Reihenfolge in der
+    # CSV entspricht der Autor-Position auf dem Paper. Pivot auf wide
+    # erhaelt diese Reihenfolge, damit DI1 die ORCIDs positional matchen
+    # kann.
+    authors_path = phase_dir / f"QC_{tag} Authors ORCID.csv"
+    if authors_path.exists():
+        adf = _read_kati_csv(authors_path)
+        adf = adf.rename(columns={"uid": "UID"})
+        for col in ("author", "orcid"):
+            if col not in adf.columns:
+                adf[col] = ""
+        adf["author"] = adf["author"].fillna("").astype(str).str.strip()
+        adf["orcid"]  = adf["orcid"].fillna("").astype(str).str.strip()
+
+        def _agg(group: pd.DataFrame) -> pd.Series:
+            names  = group["author"].tolist()
+            orcids = group["orcid"].tolist()
+            afn = "; ".join(names)
+            # WoS-Format "Name/ORCID" emittieren; leerer Slot bei fehlender
+            # ORCID — DI1 erkennt das "/" als ORCID-Trigger.
+            orc_entries = [
+                f"{n}/{o}" if (o and len(o) >= 10) else ""
+                for n, o in zip(names, orcids)
+            ]
+            return pd.Series({
+                "Author Full Names": afn,
+                "ORCIDs":            "; ".join(orc_entries),
+            })
+
+        try:
+            auth_wide = adf.groupby("UID", sort=False, group_keys=False) \
+                           .apply(_agg, include_groups=False) \
+                           .reset_index()
+        except TypeError:  # pandas < 2.2
+            auth_wide = adf.groupby("UID", sort=False, group_keys=False) \
+                           .apply(_agg) \
+                           .reset_index()
+
+        df = df.merge(auth_wide, on="UID", how="left")
+        df["Author Full Names"] = df["Author Full Names"].fillna("")
+        df["ORCIDs"]            = df["ORCIDs"].fillna("")
+
+        n_afn      = df["Author Full Names"].astype(bool).sum()
+        n_orc_any  = df["ORCIDs"].apply(lambda x: "/" in str(x)).sum()
+        n_authors  = df["Author Full Names"].apply(
+            lambda x: len([p for p in str(x).split(";") if p.strip()])
+        ).sum()
+        n_with_id  = df["ORCIDs"].apply(
+            lambda x: sum(1 for p in str(x).split(";") if "/" in p)
+        ).sum()
+        cov_aut    = 100 * n_with_id / n_authors if n_authors else 0.0
+        print(f"  Author Full Names:       {n_afn}/{len(df)} Records gematcht")
+        print(f"  ORCIDs (Pub mit >=1):    {n_orc_any}/{len(df)} Records "
+              f"| Autor-ORCID-Coverage: {cov_aut:.1f}%")
+    else:
+        print(f"  Authors ORCID: Datei fehlt — DI1 bleibt blockiert")
+        df["Author Full Names"] = ""
+        df["ORCIDs"]            = ""
+
     # --- Spalten-Mapping → Pipeline-Format ---
     out = pd.DataFrame({
         "Title":                  df["title"],
@@ -437,9 +499,10 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         "Citation Topic Macro":   df.get("Citation Topic Macro", ""),
         "Citation Topic Meso":    df.get("Citation Topic Meso", ""),
         "Citation Topic Micro":   df.get("Citation Topic Micro", ""),
-        # Noch ausstehende Felder als leere Spalten
-        "Author Full Names":      "",
-        "ORCIDs":                 "",
+        # Authors + ORCIDs (DI1) — KATI Mai-2026-Tranche
+        "Author Full Names":      df.get("Author Full Names", ""),
+        "ORCIDs":                 df.get("ORCIDs", ""),
+        # Cited References: Validierungs-Spur, kein 16-Indikator-Eingang
         "Cited References":       "",
     })
 
@@ -461,6 +524,7 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
     print("  Feld-Vollständigkeit:")
     for col in ["Source Title", "Author Keywords", "Keywords Plus",
                 "WoS Categories", "Affiliations", "Addresses", "Country List",
+                "Author Full Names", "ORCIDs",
                 "Citation Topic Macro", "Citation Topic Meso",
                 "Citation Topic Micro"]:
         n_filled = out[col].astype(str).str.len().gt(0).sum()
@@ -512,8 +576,8 @@ def main(force: bool = False) -> None:
     print("     (Phase 1: wos_qc_phase1_2000_2015.csv,")
     print("      Phase 2: wos_qc_phase2_2016_2025.csv).")
     print("  2. python step01_topic_modeling.py")
-    print("  3. python step02_indicators.py   # 15/16 Indikatoren operativ")
-    print("     (DI2/DI3 jetzt aktiv; nur DI1 weiterhin NaN ohne ORCIDs)")
+    print("  3. python step02_indicators.py   # 16/16 Indikatoren operativ")
+    print("     (DI1 nun aktiv durch Authors+ORCIDs aus KATI Mai-2026)")
     print("  4. python step03_efa_pca.py")
     print("  5. python step03b_external_validation.py   # RTW/CTW")
     print("  6. python step04_visualizations.py")
