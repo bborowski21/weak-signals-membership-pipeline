@@ -16,7 +16,7 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals* (Version v1.0-thesis) [Software]. Zenodo.
+> von Weak Signals* (Version v1.1) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 
 BibTeX:
@@ -25,7 +25,7 @@ BibTeX:
 @software{borowski_pipeline_2026,
   author    = {Borowski, Ben-Nicholas},
   title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
-  version   = {v1.0-thesis},
+  version   = {v1.1},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
