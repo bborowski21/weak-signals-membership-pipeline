@@ -1,4 +1,4 @@
-# F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals
+# F3-Pipeline v1.1: Membership-Scoring zur Detektion von Weak Signals
 # Reproduktionsabhaengigkeiten — Stand 2026-05
 #
 # Versionsstrategie:
