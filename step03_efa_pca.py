@@ -1,21 +1,3 @@
-"""
-SCHRITT 3: Strukturentdeckung — EFA/PCA für interne Kohärenzprüfung
-=====================================================================
-
-Prüft, ob sich die 5 theoretischen Dimensionen aus F2 empirisch
-in den 16 (bzw. 15) Indikatoren wiederfinden.
-
-Tests:
-  1. KMO & Bartlett → Eignung der Daten für Faktorenanalyse
-  2. Scree-Plot + Parallelanalyse → Anzahl der Faktoren
-  3. PCA-Ladungsmatrix → Welche Indikatoren laden auf welche Faktoren?
-  4. Kohärenz-Assessment → Theoretische vs. empirische Struktur
-
-Hinweis: Indikatoren mit Varianz ≈ 0 (z.B. review_absence bei reinem
-Article/Conference-Paper-Datensatz) werden automatisch ausgeschlossen.
-
-Autor: Ben Borowski
-"""
 
 import pandas as pd
 import numpy as np
@@ -36,9 +18,6 @@ from config import (
 )
 
 
-# =============================================================================
-# THEORETISCHES MAPPING (Indikator → Dimension)
-# =============================================================================
 
 THEORETICAL_MAPPING = {
     "keyword_volatility": "Epistemische Offenheit",
@@ -65,15 +44,8 @@ DIM_ORDER = [
 ]
 
 
-# =============================================================================
-# 1. KMO & BARTLETT
-# =============================================================================
 
 def compute_kmo(corr_matrix: np.ndarray) -> float:
-    """
-    Kaiser-Meyer-Olkin Maß der Stichprobeneignung.
-    KMO > 0.6 = akzeptabel, > 0.7 = gut, > 0.8 = sehr gut.
-    """
     n = corr_matrix.shape[0]
     try:
         inv_corr = np.linalg.inv(corr_matrix)
@@ -91,10 +63,6 @@ def compute_kmo(corr_matrix: np.ndarray) -> float:
 
 
 def bartlett_test(corr_matrix: np.ndarray, n_obs: int) -> tuple:
-    """
-    Bartletts Sphärizitätstest.
-    H0: Korrelationsmatrix = Einheitsmatrix (keine Faktorstruktur).
-    """
     p = corr_matrix.shape[0]
     det = np.linalg.det(corr_matrix)
 
@@ -108,16 +76,8 @@ def bartlett_test(corr_matrix: np.ndarray, n_obs: int) -> tuple:
     return chi_sq, p_value
 
 
-# =============================================================================
-# 2. PARALLELANALYSE
-# =============================================================================
 
 def parallel_analysis(data: np.ndarray, n_iter: int = 200) -> np.ndarray:
-    """
-    Horns Parallelanalyse: Generiert Random-Eigenwerte aus zufälligen
-    Daten gleicher Dimension. Faktoren werden beibehalten, wenn
-    der reale Eigenwert den zufälligen übersteigt.
-    """
     n_obs, n_vars = data.shape
     random_eigenvalues = np.zeros((n_iter, n_vars))
 
@@ -130,13 +90,9 @@ def parallel_analysis(data: np.ndarray, n_iter: int = 200) -> np.ndarray:
     return random_eigenvalues.mean(axis=0)
 
 
-# =============================================================================
-# 3. PCA
-# =============================================================================
 
 def run_pca(z_data: np.ndarray, n_components: int,
             feature_names: list) -> tuple:
-    """PCA durchführen und Ladungsmatrix zurückgeben."""
     pca = PCA(n_components=n_components)
     pca.fit(z_data)
 
@@ -148,20 +104,9 @@ def run_pca(z_data: np.ndarray, n_components: int,
     return loadings, pca
 
 
-# =============================================================================
-# 4. KOHÄRENZ-ASSESSMENT
-# =============================================================================
 
 def assess_coherence(loadings: pd.DataFrame, valid_indicators: list,
                      threshold: float = 0.4) -> dict:
-    """
-    Prüft, wie gut die PCA-Komponenten mit den theoretischen
-    Dimensionen übereinstimmen.
-
-    Für jede Dimension:
-    - Auf welche PC laden die zugehörigen Indikatoren am stärksten?
-    - Kohärenz = Anteil der Indikatoren, die auf dieselbe PC laden
-    """
     results = {}
     mapping = {k: v for k, v in THEORETICAL_MAPPING.items() if k in valid_indicators}
 
@@ -199,13 +144,9 @@ def assess_coherence(loadings: pd.DataFrame, valid_indicators: list,
     return results
 
 
-# =============================================================================
-# VISUALISIERUNGEN
-# =============================================================================
 
 def plot_scree(eigenvalues: np.ndarray, parallel_eigs: np.ndarray,
                output_path: str):
-    """Scree-Plot mit Parallelanalyse-Schwellenwert."""
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
     n = len(eigenvalues)
@@ -235,7 +176,6 @@ def plot_scree(eigenvalues: np.ndarray, parallel_eigs: np.ndarray,
 
 def plot_loading_matrix(loadings: pd.DataFrame, valid_indicators: list,
                         output_path: str):
-    """Heatmap der Faktorladungen, gruppiert nach theoretischen Dimensionen."""
     mapping = {k: v for k, v in THEORETICAL_MAPPING.items() if k in valid_indicators}
     sorted_indicators = sorted(
         loadings.index,
@@ -251,13 +191,11 @@ def plot_loading_matrix(loadings: pd.DataFrame, valid_indicators: list,
         ax=ax, linewidths=0.5,
     )
 
-    # Dimensionsgruppen markieren — Kuerzel in Dimensionsfarbe (vgl. Abb. 3.2)
     current_dim = None
     dim_block_start = 0
     for i, indicator in enumerate(sorted_indicators):
         dim = mapping.get(indicator, "")
         if dim != current_dim:
-            # Annotation des vorhergehenden Blocks (zentriert ueber die Zeilen)
             if current_dim is not None:
                 ax.axhline(y=i, color="black", linewidth=2)
                 center_y = (dim_block_start + i) / 2.0
@@ -272,7 +210,6 @@ def plot_loading_matrix(loadings: pd.DataFrame, valid_indicators: list,
             current_dim = dim
             dim_block_start = i
 
-    # Letzten Block annotieren
     if current_dim is not None:
         center_y = (dim_block_start + len(sorted_indicators)) / 2.0
         color = DIM_COLORS.get(current_dim, "#999999")
@@ -297,7 +234,6 @@ def plot_loading_matrix(loadings: pd.DataFrame, valid_indicators: list,
 
 def plot_correlation_matrix(indicator_df: pd.DataFrame, valid_indicators: list,
                             output_path: str):
-    """Korrelationsmatrix, gruppiert nach theoretischen Dimensionen."""
     mapping = {k: v for k, v in THEORETICAL_MAPPING.items() if k in valid_indicators}
     sorted_cols = sorted(
         indicator_df.columns,
@@ -314,7 +250,6 @@ def plot_correlation_matrix(indicator_df: pd.DataFrame, valid_indicators: list,
         ax=ax, linewidths=0.5, square=True,
     )
 
-    # Dimensionsgrenzen einzeichnen
     boundaries = []
     current_dim = mapping.get(sorted_cols[0], "")
     for i, col in enumerate(sorted_cols):
@@ -335,20 +270,15 @@ def plot_correlation_matrix(indicator_df: pd.DataFrame, valid_indicators: list,
     print(f"  Korrelationsmatrix gespeichert: {output_path}")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def run():
     print("=" * 70)
     print("SCHRITT 3: STRUKTURENTDECKUNG — EFA/PCA")
     print("=" * 70)
 
-    # --- Daten laden ---
     indicator_df = pd.read_csv(OUTPUT_DIR / "indicators_16.csv", index_col="topic")
     print(f"Indikator-Matrix geladen: {indicator_df.shape}")
 
-    # --- Zero-Varianz-Indikatoren entfernen ---
     variances = indicator_df.std()
     low_var = variances[variances < EFA_MIN_VARIANCE].index.tolist()
     if low_var:
@@ -358,12 +288,10 @@ def run():
 
     valid_indicators = indicator_df.columns.tolist()
 
-    # --- z-Standardisierung ---
     scaler = StandardScaler()
     z_data = scaler.fit_transform(indicator_df)
     z_df = pd.DataFrame(z_data, index=indicator_df.index, columns=indicator_df.columns)
 
-    # --- 1. KMO & Bartlett ---
     print("\n--- Stichprobeneignung ---")
     corr = np.corrcoef(z_data, rowvar=False)
     kmo = compute_kmo(corr)
@@ -374,7 +302,6 @@ def run():
     print(f"  Bartlett: χ²={chi_sq:.1f}, p={p_val:.6f} "
           f"({'signifikant' if p_val < 0.05 else 'nicht signifikant'})")
 
-    # --- 2. Eigenwerte & Scree ---
     print("\n--- Eigenwertanalyse ---")
     eigenvalues = np.sort(np.linalg.eigvalsh(corr))[::-1]
     parallel_eigs = parallel_analysis(z_data, n_iter=EFA_PARALLEL_N_ITER)
@@ -392,7 +319,6 @@ def run():
 
     plot_scree(eigenvalues, parallel_eigs, str(OUTPUT_DIR / "scree_plot.png"))
 
-    # --- 3. PCA mit 5 Komponenten (theoriegetrieben) ---
     print("\n--- PCA mit 5 Komponenten (theoriegetrieben) ---")
     loadings_5, pca_5 = run_pca(z_data, n_components=5,
                                  feature_names=valid_indicators)
@@ -403,7 +329,6 @@ def run():
     plot_loading_matrix(loadings_5, valid_indicators,
                         str(OUTPUT_DIR / "loading_matrix.png"))
 
-    # --- Auch datengetrieben ---
     n_retain = max(n_parallel, 3)
     if n_retain != 5:
         print(f"\n--- PCA mit {n_retain} Komponenten (datengetrieben) ---")
@@ -415,7 +340,6 @@ def run():
         plot_loading_matrix(loadings_n, valid_indicators,
                             str(OUTPUT_DIR / f"loading_matrix_{n_retain}pc.png"))
 
-    # --- 4. Kohärenz-Assessment ---
     print("\n--- Theorie-Empirie-Kohärenz ---")
     coherence = assess_coherence(loadings_5, valid_indicators)
 
@@ -435,12 +359,10 @@ def run():
             match = "  " if pc == info["dominant_pc"] else f"→{pc}"
             print(f"      {ind:35s}: {loading_val:+.3f} {match}")
 
-    # --- 5. Korrelationsmatrix ---
     print("\n--- Korrelationsanalyse ---")
     plot_correlation_matrix(indicator_df, valid_indicators,
                             str(OUTPUT_DIR / "correlation_matrix.png"))
 
-    # Intra-Dimensions-Korrelationen
     for dim in DIM_ORDER:
         dim_inds = [k for k, v in THEORETICAL_MAPPING.items()
                     if v == dim and k in valid_indicators]
@@ -451,7 +373,6 @@ def run():
         mean_corr = sub_corr.values[mask].mean()
         print(f"  {dim:25s}: r̄ intra-dim = {mean_corr:+.3f}")
 
-    # ===== ZUSAMMENFASSUNG =====
     n_coherent = sum(1 for v in coherence.values()
                      if v.get("coherence", 0) >= 0.67)
     n_partial = sum(1 for v in coherence.values()
@@ -474,7 +395,6 @@ def run():
         print(f"\n  → Empirisch entstehen {n_parallel} Faktoren. "
               "Einige Dimensionen differenzieren sich weiter aus.")
 
-    # ===== SPEICHERN =====
     summary = {
         "kmo": float(kmo),
         "bartlett_chi2": float(chi_sq),

@@ -1,35 +1,3 @@
-"""
-Step-5-Artefakt-Builder (Pipeline V2)
-======================================
-
-Rekonstruiert das Pickle, das step05_sensitivity.py (V2) erwartet:
-
-    step1_artifacts.pkl  →  {df, labels, embeddings_sbert}
-
-V2-Unterschied zu V1:
-  V1 verwendete zusätzlich step2_artifacts.pkl mit einer kategorialen
-  baseline-classes-Spalte aus signal_classification.csv. In V2 liest
-  step05_sensitivity die Baseline-Memberships direkt aus
-  signal_memberships.csv und die Indikator-/Dimensionsscores aus den
-  zugehörigen CSVs — ein eigener Step-2-Pickle ist nicht mehr nötig.
-
-Quellen pro Phase (output_phaseX/):
-  step1_artifacts.pkl:
-    - df               : reproduziert über data_path + Year/Längen-Filter
-                         (identisch zur Filterlogik in step01)
-    - labels           : aus model_results.pkl
-    - embeddings_sbert : aus model_results.pkl
-
-Voraussetzungen (geprüft):
-    model_results.pkl, indicators_16.csv, dimension_scores.csv,
-    signal_memberships.csv
-
-Aufruf:
-    python build_step5_artifacts.py 1
-    python build_step5_artifacts.py 2
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -79,16 +47,6 @@ def parse_phase_arg() -> str:
 
 
 def load_and_filter_df(data_path: Path, year_min: int, year_max: int) -> pd.DataFrame:
-    """Reproduziert die Filterlogik aus step01_topic_modeling.py:load_data().
-
-    Schritte (identisch zu step01):
-      (a) CSV laden
-      (b) text = Title + ". " + Abstract
-      (c) text_clean = lowercase, nur a-z0-9\\s- erlaubt, whitespace kollabiert
-      (d) Year-Filter: PHASE_YEAR_MIN <= Year <= PHASE_YEAR_MAX (numerisch)
-      (e) Längen-Filter: >= 10 Wörter in text_clean
-      (f) reset_index(drop=True)  -- wichtig, weil labels/embeddings positional
-    """
     print(f"Lade {data_path.name} ...")
     df = pd.read_csv(data_path)
     n0 = len(df)
@@ -119,15 +77,6 @@ def build_step1_artifact(output_dir: Path, data_path: Path,
                           year_min: int, year_max: int) -> None:
     df = load_and_filter_df(data_path, year_min, year_max)
 
-    # Kanonische Spaltennamen für step02_indicators.compute_*-Funktionen:
-    # step02.run() führt vor dem Indikator-Aufruf eine Umbenennung gemäß
-    # CANON_COLUMNS durch (z. B. "Source Title" → "Source title",
-    # "Author Full Names" → "Authors"). step05_sensitivity ruft jedoch
-    # compute_all_indicators(df) direkt auf und überspringt diesen Rename.
-    # Damit step05 ohne Modifikation der Pipeline-Module funktioniert,
-    # spiegeln wir hier die identische Mapping-Tabelle und legen die
-    # Zielspalten als Kopien an (Originalspalten bleiben erhalten, damit
-    # alle anderen Konsumenten weiter funktionieren).
     canon_columns = {
         "Publication Year":      "Year",
         "Author Full Names":     "Authors",
@@ -156,7 +105,6 @@ def build_step1_artifact(output_dir: Path, data_path: Path,
     labels = np.asarray(model["labels"])
     embeddings_sbert = np.asarray(model["embeddings_sbert"])
 
-    # Konsistenzprüfung: alle drei Felder positional auf gleicher Länge?
     n_df, n_lab, n_emb = len(df), len(labels), len(embeddings_sbert)
     if not (n_df == n_lab == n_emb):
         print(f"FEHLER: Längen-Mismatch — df={n_df}, labels={n_lab}, "
@@ -178,12 +126,6 @@ def build_step1_artifact(output_dir: Path, data_path: Path,
 
 
 def verify_membership_artifacts(output_dir: Path) -> None:
-    """Verifiziert die für step05 V2 benötigten CSV-Artefakte.
-
-    Im Gegensatz zu V1 wird kein step2_artifacts.pkl mehr gebaut; step05
-    V2 liest indicators_16.csv, dimension_scores.csv und
-    signal_memberships.csv direkt. Hier nur Spalten-Validierung.
-    """
     indicator_df = pd.read_csv(
         output_dir / "indicators_16.csv", index_col=0)
     dim_scores = pd.read_csv(
@@ -217,7 +159,6 @@ def main() -> None:
     print(f"  Output-Dir  : {output_dir}")
     print()
 
-    # Voraussetzungen prüfen
     required = [
         "model_results.pkl",
         "indicators_16.csv",

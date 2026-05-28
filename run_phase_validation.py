@@ -1,24 +1,3 @@
-"""
-Ein-Befehl-Wrapper: Externe Validierung (Schritt 3b) für eine Phase
-====================================================================
-
-Aufruf:
-    python run_phase_validation.py 1     # Phase 1 (2000-2015)
-    python run_phase_validation.py 2     # Phase 2 (2016-2025)
-
-Voraussetzungen:
-    output_phaseX/indicators_16.csv
-    output_phaseX/topic_assignments.csv  (mit RTW / CTW Spalten)
-    Eingabe-CSV mit RTW / CTW pro Dokument
-
-Schreibt nach output_phaseX/:
-    external_validation_paper.csv   - Paper-Ebene RTW/CTW + Topic
-    external_validation_topic.csv   - Topic-Aggregate
-    external_validation_corr.csv    - Korrelationsmatrix
-    external_validation_mtmm.csv    - MTMM-Tabelle nach Campbell & Fiske
-
-Autor: Ben Borowski (analog zu run_phase_efa.py)
-"""
 
 from __future__ import annotations
 
@@ -93,7 +72,6 @@ def main() -> None:
     config.PHASE_YEAR_MAX = cfg["year_max"]
 
     import step03b_external_validation
-    # run() akzeptiert data_path/output_dir explizit
     step03b_external_validation.run(data_path=data_path, output_dir=output_dir)
 
     print()

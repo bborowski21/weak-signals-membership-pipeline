@@ -1,38 +1,3 @@
-"""
-Ein-Befehl-Wrapper: Indikatorberechnung + Memberships pro Phase (V2)
-=====================================================================
-
-Aufruf:
-    python run_phase_indicators.py 1     # Phase 1 (2000-2015)
-    python run_phase_indicators.py 2     # Phase 2 (2016-2025)
-
-Was passiert:
-  1. config.DATA_PATH und config.OUTPUT_DIR werden für diese Phase auf die
-     entsprechenden Werte gesetzt (in-memory, keine Datei-Modifikation).
-  2. config.PHASE_YEAR_MIN / PHASE_YEAR_MAX werden auf die Phasengrenzen
-     gesetzt.
-  3. step02_indicators.run() berechnet 16 Indikatoren und Dimensionsscores.
-  4. step02b_memberships.run() berechnet die vier kontinuierlichen
-     Memberships (m_ws, m_trend, m_ec, m_latent) und Margin.
-
-Voraussetzungen:
-  Topic Modeling der entsprechenden Phase muss bereits gelaufen sein
-  (output_phaseX/model_results.pkl, tem_metrics.csv, topic_keywords.csv,
-   topic_proportions_yearly.csv).
-
-Ergebnisse landen in:
-    output_phase1/   bzw.   output_phase2/
-
-Geschrieben werden:
-    indicators_16.csv        - 16 Indikatoren pro Topic
-    dimension_scores.csv     - Aggregierte Dimensions-Scores
-    signal_memberships.csv   - Kontinuierliche Memberships + Margin (V2)
-
-Die Pipeline-Module (config.py, step02_indicators.py, step02b_memberships.py)
-bleiben unverändert.
-
-Autor: Ben Borowski (analog zu run_phase.py)
-"""
 
 from __future__ import annotations
 
@@ -40,12 +5,9 @@ import sys
 from pathlib import Path
 
 
-# =============================================================================
-# Phasen-Konfiguration (identisch zu run_phase.py)
-# =============================================================================
 
-BASE_DIR = Path(__file__).parent           # → sbert_pipeline/
-PARENT_DIR = BASE_DIR.parent               # → F3_Prototyp/
+BASE_DIR = Path(__file__).parent
+PARENT_DIR = BASE_DIR.parent
 
 PHASES = {
     "1": {
@@ -82,7 +44,6 @@ def parse_phase_arg() -> str:
 
 
 def ensure_topic_modeling_done(output_dir: Path) -> None:
-    """Prüft, dass Schritt 1 für diese Phase vorliegt."""
     required = [
         "model_results.pkl",
         "tem_metrics.csv",
@@ -113,12 +74,8 @@ def main() -> None:
     print(f"  Year-Filter : [{year_min}, {year_max}]")
     print()
 
-    # 1. Topic Modeling muss vorliegen
     ensure_topic_modeling_done(output_dir)
 
-    # 2. Konfiguration in-memory umschalten — config + alle abhängigen Module
-    #    (step02 und step02b importieren Konstanten per `from config import …`
-    #    direkt in ihren Namespace, deshalb alle patchen).
     import config
     config.DATA_PATH = data_path
     config.OUTPUT_DIR = output_dir
@@ -134,10 +91,8 @@ def main() -> None:
     import step02b_memberships
     step02b_memberships.OUTPUT_DIR = output_dir
 
-    # 3. Indikatorberechnung
     step02_indicators.run()
 
-    # 4. Membership-Berechnung (V2-Kernartefakt)
     print()
     step02b_memberships.run()
 

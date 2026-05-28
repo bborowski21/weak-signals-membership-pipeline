@@ -1,44 +1,3 @@
-"""
-TEM-Robustheit (Schritt 1d)
-============================
-
-Re-berechnet Topic-Evolution-Metriken (avg_proportion, growth_rate) aus
-topic_assignments.csv mit drei methodischen Härtungen gegenüber der
-ursprünglichen tem_metrics.csv:
-
-  (1) Partial-Year-Detektion
-        Identifiziert Endjahre, deren Volumen signifikant unter dem Trend der
-        Vorjahre liegt (Indikator für unvollständige Datensammlung). Konkret:
-        WoS-Records mit Publikationsjahr 2026 sind in der Phase-2-Lieferung
-        nur partiell enthalten (Early-Access, Online-First).
-
-  (2) Konfigurierbares Analyse-Endjahr
-        Ermöglicht TEM-Berechnung mit ``end_year`` < max(Year), um den
-        Right-Edge-Bias von Partial-Years zu eliminieren. Default-Verhalten:
-        TEM in zwei Varianten parallel ausgeben — voll und gekürzt — damit
-        Sensitivität explizit dokumentiert wird.
-
-  (3) Wachstumsraten-Spezifikation
-        Die ursprüngliche growth_rate-Definition aus step01 wird hier
-        formalisiert (linearer Slope auf log-relativem Anteil) und alternativ
-        eine robustere Variante (Median-Split: zweite Hälfte vs. erste Hälfte)
-        berechnet, um Schock-Effekte einzelner Jahre zu dämpfen.
-
-Designprinzip:
-  Keine Modifikation des bestehenden step01_topic_modeling.py. Diese Datei
-  liest die Schritt-1-Ausgaben (topic_assignments.csv, ggf. tem_metrics.csv,
-  topic_keywords.csv) und schreibt eine erweiterte tem_metrics-Variante in
-  einen separaten Subordner (z.B. ``output_phase2/tem_robust/``).
-
-Aufruf:
-    python step01d_tem_robustness.py --phase 2
-    python step01d_tem_robustness.py --phase 2 --end-year 2025
-    python step01d_tem_robustness.py --phase 1 --end-year 2014
-    python step01d_tem_robustness.py --phase 2 --auto-trim   # automatisch trimmen
-    python step01d_tem_robustness.py --diagnose-only --phase 2
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -49,9 +8,6 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-# =============================================================================
-# KONFIGURATION
-# =============================================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -60,31 +16,18 @@ PHASE_DIRS = {
     "2": BASE_DIR / "output_phase2",
 }
 
-# Schwelle für "Partial-Year"-Erkennung: Volumen < threshold * Median(letzte 3 Vorjahre)
 PARTIAL_YEAR_THRESHOLD = 0.6
 
 
-# =============================================================================
-# PARTIAL-YEAR-DETEKTION
-# =============================================================================
 
 def detect_partial_years(
     year_counts: pd.Series, threshold: float = PARTIAL_YEAR_THRESHOLD
 ) -> list[int]:
-    """Identifiziert wahrscheinlich-partielle Endjahre.
-
-    Heuristik: Vergleicht das Volumen jedes Jahres ab dem drittletzten
-    aufsteigend mit dem Median der drei jüngsten Vorjahre. Liegt das
-    Verhältnis unter ``threshold``, wird das Jahr als partial markiert.
-
-    Reine Datendiagnose — keine inhaltliche Aussage zur Topic-Verteilung.
-    """
     yc = year_counts.sort_index()
     if len(yc) < 4:
         return []
 
     partial = []
-    # Wir prüfen die letzten 3 Jahre rückwärts
     for i in range(len(yc) - 1, max(len(yc) - 4, 2) - 1, -1):
         year = yc.index[i]
         if i < 3:
@@ -99,27 +42,17 @@ def detect_partial_years(
         if ratio < threshold:
             partial.append((int(year), float(ratio), int(yc.iloc[i]), int(ref)))
 
-    # Bricht ab, sobald ein nicht-partielles Jahr gefunden wird (Trim erfolgt
-    # zusammenhängend ans rechte Ende)
     contiguous_partial = []
     for year, ratio, vol, ref in partial:
         contiguous_partial.append((year, ratio, vol, ref))
     return contiguous_partial
 
 
-# =============================================================================
-# TEM-BERECHNUNG
-# =============================================================================
 
 def compute_topic_proportions(
     df_assign: pd.DataFrame,
     end_year: int | None = None,
 ) -> pd.DataFrame:
-    """Topic-Proportionen pro Jahr (long form: topic, year, proportion).
-
-    Outlier (-1) werden bei der Proportionsberechnung mitgezählt im Nenner,
-    aber die zurückgegebene Tabelle enthält sie nicht (analog step01-Konvention).
-    """
     df = df_assign[["Year", "topic"]].dropna().copy()
     df["Year"] = df["Year"].astype(int)
     if end_year is not None:
@@ -130,7 +63,6 @@ def compute_topic_proportions(
     year_totals = yearly_counts.sum(axis=1)
     proportions = yearly_counts.div(year_totals, axis=0)
 
-    # Long-form, Outlier ausschließen
     long = proportions.reset_index().melt(
         id_vars="Year", var_name="topic", value_name="proportion"
     )
@@ -139,19 +71,11 @@ def compute_topic_proportions(
 
 
 def linear_growth_rate(years: np.ndarray, props: np.ndarray) -> float:
-    """Linearer Slope der Topic-Proportion über Jahre.
-
-    Definition: OLS-Slope von proportion ~ year, normiert auf den Mittelwert
-    der proportion (relative Wachstumsrate). Robust gegen Skalierungseffekte.
-
-    Bei avg_proportion=0 wird 0.0 zurückgegeben.
-    """
     if len(years) < 2:
         return 0.0
     avg = float(np.mean(props))
     if avg <= 0:
         return 0.0
-    # OLS slope
     x = years.astype(float)
     y = props.astype(float)
     n = len(x)
@@ -167,10 +91,6 @@ def linear_growth_rate(years: np.ndarray, props: np.ndarray) -> float:
 
 
 def half_split_growth_rate(years: np.ndarray, props: np.ndarray) -> float:
-    """Robustere Variante: (Median 2. Hälfte − Median 1. Hälfte) / Median Gesamt.
-
-    Weniger sensitiv für einzelne Schock-Jahre als der lineare Slope.
-    """
     if len(years) < 4:
         return 0.0
     order = np.argsort(years)
@@ -187,11 +107,6 @@ def half_split_growth_rate(years: np.ndarray, props: np.ndarray) -> float:
 def compute_tem(
     proportions_long: pd.DataFrame,
 ) -> pd.DataFrame:
-    """TEM-Tabelle pro Topic.
-
-    Spalten: topic, n_years, avg_proportion, max_proportion,
-             growth_rate_ols, growth_rate_halfsplit
-    """
     rows = []
     for t, g in proportions_long.groupby("topic"):
         years = g["Year"].to_numpy()
@@ -207,9 +122,6 @@ def compute_tem(
     return pd.DataFrame(rows).sort_values("topic").reset_index(drop=True)
 
 
-# =============================================================================
-# REPORT
-# =============================================================================
 
 def write_outputs(
     df_assign: pd.DataFrame,
@@ -220,7 +132,6 @@ def write_outputs(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Variante 1: voll
     prop_full = compute_topic_proportions(df_assign, end_year=end_year_full)
     tem_full = compute_tem(prop_full)
     tem_full.to_csv(out_dir / "tem_metrics_full.csv", index=False)
@@ -228,7 +139,6 @@ def write_outputs(
     print(f"  voll  ({end_year_full}): {len(tem_full)} Topics, "
           f"{out_dir.name}/tem_metrics_full.csv")
 
-    # Variante 2: getrimmt (falls end_year_trim explizit oder Partial-Year-Tail)
     if end_year_trim is not None and end_year_trim < end_year_full:
         prop_trim = compute_topic_proportions(df_assign, end_year=end_year_trim)
         tem_trim = compute_tem(prop_trim)
@@ -239,7 +149,6 @@ def write_outputs(
         print(f"  trim  ({end_year_trim}): {len(tem_trim)} Topics, "
               f"{out_dir.name}/tem_metrics_trim_{end_year_trim}.csv")
 
-        # Vergleich: wie stark verschieben sich growth_rates?
         cmp = tem_full.merge(
             tem_trim, on="topic", suffixes=("_full", "_trim"),
         )
@@ -256,7 +165,6 @@ def write_outputs(
         print(f"  Topics mit Vorzeichenwechsel des growth_rate: {flipped} "
               f"/ {len(cmp)}")
 
-    # Diagnostik
     diag = []
     diag.append("TEM-Robustheits-Bericht")
     diag.append("=" * 60)
@@ -286,9 +194,6 @@ def write_outputs(
     print(f"  Diagnostik:  {out_dir.name}/tem_diagnostics.txt")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)

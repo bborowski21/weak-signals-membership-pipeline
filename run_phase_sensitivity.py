@@ -1,36 +1,3 @@
-"""
-Ein-Befehl-Wrapper: Sensitivitätsanalyse (Schritt 5) für eine Phase (V2)
-========================================================================
-
-Aufruf:
-    python run_phase_sensitivity.py 1     # Phase 1 (2000-2015)
-    python run_phase_sensitivity.py 2     # Phase 2 (2016-2025)
-
-Voraussetzungen:
-    output_phaseX/step1_artifacts.pkl   (aus build_step5_artifacts.py)
-    output_phaseX/indicators_16.csv     (aus step02_indicators.py)
-    output_phaseX/dimension_scores.csv  (aus step02_indicators.py)
-    output_phaseX/signal_memberships.csv (aus step02b_memberships.py)
-
-Falls step1_artifacts.pkl fehlt, wird automatisch build_step5_artifacts.main()
-aufgerufen (idempotent). step2_artifacts.pkl wird in V2 nicht mehr benötigt
-— step05 V2 liest Indikatoren/Dimensionen/Memberships direkt aus den CSVs.
-
-Schreibt nach output_phaseX/:
-    sensitivity_membership_kl.csv         - 2D-Grid k×λ (V2)
-    sensitivity_parameter_alpha.csv       - Bayes-Prior α-Variation
-    sensitivity_parameter_hparam.csv      - BERTopic-Hyperparameter
-    sensitivity_ablation.csv              - Indikator-Ablation (V2: Spearman)
-    sensitivity_fields.csv                - Feld-Variation
-    sensitivity_seeds.csv                 - Seed-Stabilität
-    sensitivity_phase.csv                 - Phasen-Splitjahr-Variation
-    sensitivity_latency.csv               - Indexierungslatenz
-    sensitivity_report.md                 - Konsolidierter Markdown-Bericht
-
-Die Pipeline-Module (config.py, step05_sensitivity.py) bleiben unverändert.
-
-Autor: Ben Borowski (analog zu run_phase_indicators.py)
-"""
 
 from __future__ import annotations
 
@@ -75,13 +42,6 @@ def parse_phase_arg() -> str:
 
 
 def ensure_artifacts_ready(output_dir: Path, phase_key: str) -> None:
-    """Stellt sicher, dass step1_artifacts.pkl + Membership-CSVs vorliegen.
-
-    V2: step2_artifacts.pkl ist nicht mehr nötig; step05 V2 liest Indikatoren,
-    Dimensionen und Memberships direkt aus den CSV-Outputs. Falls
-    step1_artifacts.pkl fehlt, wird build_step5_artifacts automatisch
-    aufgerufen (in-Memory).
-    """
     needed_csvs = [
         "indicators_16.csv",
         "dimension_scores.csv",

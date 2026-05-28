@@ -1,38 +1,3 @@
-"""
-BATCH-RUNNER: Isolierte Ausführung der BERTopic-Hyperparameter-Sensitivität
-===========================================================================
-
-Zweck
------
-Die Hyperparameter-Sensitivität (Schritt 5, Ebene "Einheitenbildung")
-erfordert je Gridzelle eine vollständige Neuberechnung aller 17 Indikatoren
-auf neu gebildeten Topiclabels. Laufzeit: ca. 8–12 min je Zelle
-(n ≈ 44 000 Dokumente; UMAP + HDBSCAN + 17 Indikatoren).
-
-Dieser Runner ist vom Haupt-`step05`-Lauf getrennt, damit der
-Haupt-Sensitivitätsbericht (κ/ARI/V-Measure + α-Re-Runs + k*×q*-Grid +
-Ablation + Fields + Seeds + Phase + Latency) in einem vertretbaren Zeit-
-rahmen (~30 min) erstellbar bleibt, und die rechenintensiven
-Hyperparameter-Läufe (~2 h) nur bedarfsweise getriggert werden.
-
-Verwendung
-----------
-  $ python run_sensitivity_hparam.py
-  $ python run_sensitivity_hparam.py --only min_cluster_size
-  $ python run_sensitivity_hparam.py --skip min_topic_size
-
-Die Ergebnisse werden in `output/sensitivity_parameter_hparam.csv`
-gespeichert und überschreiben eine vorhandene (Platzhalter-)Variante aus
-dem Haupt-`step05`-Lauf.
-
-Literatur
----------
-  Saltelli et al. (2008). Global Sensitivity Analysis: The Primer. Wiley.
-  Spearman, C. (1904). The proof and measurement of association between
-    two things. American Journal of Psychology, 15, 72–101.
-
-Autor: Ben Borowski
-"""
 
 import argparse
 import pickle
@@ -49,7 +14,6 @@ from step05_sensitivity import bertopic_hyperparameter_sensitivity
 
 
 def _load_artifacts(output_dir: Path):
-    """Lädt die in step01/step02 erzeugten Pickle-Artefakte."""
     with open(output_dir / "step1_artifacts.pkl", "rb") as f:
         art1 = pickle.load(f)
     with open(output_dir / "step2_artifacts.pkl", "rb") as f:
@@ -88,7 +52,6 @@ def main() -> int:
     print("=" * 70)
     artifacts = _load_artifacts(output_dir)
 
-    # Grid-Auswahl gemäß --only / --skip
     run_mcs = (args.only in (None, "min_cluster_size")
                  and "min_cluster_size" not in args.skip)
     run_mts = (args.only in (None, "min_topic_size")
@@ -119,7 +82,6 @@ def main() -> int:
     df_out.to_csv(out_path, index=False)
     print(f"\n[run_sensitivity_hparam] Ergebnisse gespeichert: {out_path}")
 
-    # Konsolidierte Konsolen-Zusammenfassung
     print("\n--- Zusammenfassung Spearman-ρ (mean über 17 Indikatoren) ---")
     if "spearman_rho_mean" in df_out.columns:
         summary = df_out[["param", "value", "n_topics",

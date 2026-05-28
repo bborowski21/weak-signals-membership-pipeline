@@ -1,25 +1,3 @@
-"""
-Ein-Befehl-Wrapper: Cross-Phase-Visualisierungen (Pipeline V2)
-================================================================
-
-Aufruf:
-    python run_cross_phase_viz.py
-
-Voraussetzungen:
-    output_phase1/signal_memberships.csv
-    output_phase1/dimension_scores.csv
-    output_phase2/signal_memberships.csv
-    output_phase2/dimension_scores.csv
-    output_cross_phase/topic_matches_mutual.csv
-        (oder topic_matches_best_p1_to_p2.csv als Fallback)
-
-Schreibt nach output_cross_phase/:
-    migration_sankey.png
-    membership_shift_heatmap.png
-    structure_compare_radar.png
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 

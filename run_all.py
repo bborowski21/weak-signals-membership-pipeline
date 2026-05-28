@@ -1,47 +1,15 @@
-"""
-F3 SBERT-Pipeline — Orchestrierungsskript
-==========================================
-
-Führt alle Schritte der F3-Pipeline sequentiell aus:
-  1.  Topic Modeling (SBERT → UMAP → HDBSCAN → c-TF-IDF → TEM)
-  2.  Indikatorberechnung (16 Indikatoren → 5 Dimensionen → Klassifikation)
-  2b. Referenz-Overlap (Cited References, optional — überspringt sich
-      automatisch, wenn das Feld noch fehlt)
-  3.  EFA/PCA (Strukturentdeckung & Kohärenzprüfung)
-  3b. Externe Validierung (RTW/CTW gegen 16 Indikatoren, MTMM)
-  4.  Visualisierungen (Radar, TEM, Heatmap, Detail-Radars, Temporal)
-  5.  Sensitivitätsanalyse (Hyperparameter, Klassifikationsregel,
-      Indikator-Ablation, Felder, Seeds, Phasen, Indexierungslatenz)
-
-Nutzung:
-  python run_all.py              # Alle Schritte
-  python run_all.py --from 2     # Ab Schritt 2 (nutzt gespeicherte Ergebnisse)
-  python run_all.py --only 3b    # Nur Schritt 3b
-  python run_all.py --skip 5     # Alles außer Schritt 5
-
-Autor: Ben Borowski
-"""
 
 import argparse
 import time
 import sys
 from pathlib import Path
 
-# Sicherstellen, dass der aktuelle Ordner im Pfad ist
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import OUTPUT_DIR
 
 
 def run_step(step_id: str, name: str, module_name: str, optional: bool = False):
-    """Einen Pipeline-Schritt ausführen mit Zeitmessung.
-
-    Wenn ``optional=True``, werden ImportErrors / FileNotFoundErrors
-    abgefangen und der Schritt mit einer Warnung übersprungen, statt
-    die gesamte Pipeline abzubrechen. Das ist relevant für Schritte,
-    die noch nicht verfügbare Felder benötigen (z. B. 2b ohne
-    Cited References).
-    """
     print(f"\n{'#' * 70}")
     print(f"# SCHRITT {step_id}: {name}")
     print(f"{'#' * 70}\n")
@@ -64,7 +32,6 @@ def run_step(step_id: str, name: str, module_name: str, optional: bool = False):
 
 
 def _normalize_step_id(raw: str) -> str:
-    """Akzeptiert '1', '2', '2b', '3b' usw. und normalisiert auf Lower-Case."""
     return str(raw).strip().lower()
 
 
@@ -86,10 +53,8 @@ def main():
     )
     args = parser.parse_args()
 
-    # Output-Verzeichnis anlegen
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # (step_id, Name, Modulname, optional)
     steps = [
         ("1",  "Topic Modeling (SBERT + UMAP + HDBSCAN)",
                                     "step01_topic_modeling",      False),

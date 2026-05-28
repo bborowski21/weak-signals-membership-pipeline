@@ -1,31 +1,3 @@
-"""
-Ein-Befehl-Wrapper: Visualisierungen (Schritt 4) pro Phase (Pipeline V2)
-========================================================================
-
-Aufruf:
-    python run_phase_viz.py 1     # Phase 1 (2000-2015)
-    python run_phase_viz.py 2     # Phase 2 (2016-2025)
-
-Voraussetzungen:
-    output_phaseX/signal_memberships.csv   (V2 — aus step02b)
-    output_phaseX/dimension_scores.csv
-    output_phaseX/tem_metrics.csv
-    output_phaseX/topic_keywords.csv
-    output_phaseX/topic_assignments.csv
-
-Schreibt nach output_phaseX/:
-    radar_profiles.png             - Radar pro argmax-Signaltyp
-    dimension_heatmap.png          - Topic × Dimension Heatmap
-    extended_tem.png               - TEM-Plot mit Signal-Klassen
-    temporal_evolution.png         - Yearly Topic-Proportionen
-    ws_detail_radars.png           - Detail-Radars für Weak Signals
-    membership_heatmap.png         - V2: Topics × 4 Memberships
-    margin_distribution.png        - V2: Margin-Diagnostik
-
-Die Pipeline-Module (config.py, step04_visualizations.py) bleiben unverändert.
-
-Autor: Ben Borowski (analog zu run_phase_indicators.py)
-"""
 
 from __future__ import annotations
 
@@ -71,7 +43,7 @@ def parse_phase_arg() -> str:
 
 def ensure_inputs_ready(output_dir: Path) -> None:
     required = [
-        "signal_memberships.csv",   # V2 statt signal_classification.csv
+        "signal_memberships.csv",
         "dimension_scores.csv",
         "tem_metrics.csv",
         "topic_keywords.csv",

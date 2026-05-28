@@ -1,49 +1,3 @@
-"""
-Cross-Phase Topic Matching (Schritt 1c)
-========================================
-
-Verbindet die unabhängig pro Phase trainierten BERTopic-Modelle über ein
-Hybrid-Maß aus zwei komplementären Signalquellen:
-
-  (1) Topic-Repräsentations-Cosine
-        Aus topic_keywords.csv: jedes Topic ist ein gewichteter Bag-of-Words.
-        Dieser Vektor wird als TF-IDF-ähnliche Repräsentation auf das gemeinsame
-        Vokabular projiziert; Cosine-Distanz zwischen Phasen-Topics.
-
-  (2) Top-K Keyword-Jaccard
-        Mengenbasierter Overlap der Top-K Keywords beider Topics.
-
-  Optional (3) SBERT-Centroid-Cosine
-        Wenn model_results.pkl mit BERTopic + topic_embeddings_ verfügbar:
-        Cosine zwischen den nativen Topic-Embeddings.
-        Nicht erforderlich für Lauffähigkeit; aktiviert mit ``--with-sbert``.
-
-Hybrid-Score:
-    score = alpha * representation_cosine + (1 - alpha) * keyword_jaccard
-    Default alpha = 0.6 (Repräsentations-Cosine dominiert leicht, Jaccard als
-    robuste lexikalische Verankerung).
-
-Methodische Begründung:
-  Die beiden Signale haben unterschiedliche Versagensmodi:
-   - Cosine ist sensitiv für gemeinsame Vokabularverteilung, kann aber durch
-     Topic-Größenunterschiede verzerrt werden.
-   - Jaccard ist robust gegen Größeneffekte, ignoriert aber Gewichtungen.
-  Hybrid mit konfigurierbarem alpha erlaubt Sensitivitätsanalysen.
-
-Output:
-    output_cross_phase/topic_matches.csv
-        phase1_topic, phase2_topic, cosine, jaccard, hybrid,
-        rank_p1_to_p2, rank_p2_to_p1, mutual_best
-    output_cross_phase/match_diagnostics.txt
-        Verteilungs-Statistiken, unsichere Matches.
-
-Aufruf:
-    python step01c_cross_phase_matching.py
-    python step01c_cross_phase_matching.py --alpha 0.5 --topk 15
-    python step01c_cross_phase_matching.py --threshold 0.3   # Konfidenz-Schwelle
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -56,9 +10,6 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 
-# =============================================================================
-# KONFIGURATION
-# =============================================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -68,18 +19,11 @@ DEFAULT_OUT_DIR = BASE_DIR / "output_cross_phase"
 
 DEFAULT_ALPHA = 0.6
 DEFAULT_TOPK = 15
-DEFAULT_THRESHOLD = 0.25  # Hybrid-Score unter dieser Schwelle = unsicher
+DEFAULT_THRESHOLD = 0.25
 
 
-# =============================================================================
-# REPRÄSENTATIONS-AUFBAU
-# =============================================================================
 
 def load_topic_keywords(out_dir: Path, topk: int) -> pd.DataFrame:
-    """Liest topic_keywords.csv und beschränkt auf Top-K pro Topic.
-
-    Erwartet Spalten: topic, keyword, score
-    """
     path = out_dir / "topic_keywords.csv"
     if not path.exists():
         raise FileNotFoundError(f"topic_keywords.csv fehlt in {out_dir}")
@@ -89,8 +33,7 @@ def load_topic_keywords(out_dir: Path, topk: int) -> pd.DataFrame:
             f"topic_keywords.csv muss Spalten topic, keyword, score haben. "
             f"Gefunden: {list(df.columns)}"
         )
-    df = df[df["topic"] != -1].copy()  # Outlier-Cluster ausklammern
-    # NaN-Keywords entfernen (entstehen durch leere c-TF-IDF-Tokens)
+    df = df[df["topic"] != -1].copy()
     df = df.dropna(subset=["keyword"]).copy()
     df["keyword"] = df["keyword"].astype(str)
     df = df.sort_values(["topic", "score"], ascending=[True, False])
@@ -99,7 +42,6 @@ def load_topic_keywords(out_dir: Path, topk: int) -> pd.DataFrame:
 
 
 def build_vocab(p1_kw: pd.DataFrame, p2_kw: pd.DataFrame) -> Dict[str, int]:
-    """Vereinigtes Vokabular aus beiden Phasen → Wort-Index-Mapping."""
     vocab = sorted(set(p1_kw["keyword"]).union(p2_kw["keyword"]))
     return {w: i for i, w in enumerate(vocab)}
 
@@ -107,10 +49,6 @@ def build_vocab(p1_kw: pd.DataFrame, p2_kw: pd.DataFrame) -> Dict[str, int]:
 def build_topic_matrix(
     kw_df: pd.DataFrame, vocab: Dict[str, int]
 ) -> Tuple[csr_matrix, List[int]]:
-    """Sparse-Matrix [n_topics × n_vocab] mit Keyword-Scores als Gewichte.
-
-    Zeilen-Index ist Topic-ID-Reihenfolge (sortiert).
-    """
     topic_ids = sorted(kw_df["topic"].unique())
     topic_to_row = {t: i for i, t in enumerate(topic_ids)}
 
@@ -132,7 +70,6 @@ def build_topic_matrix(
 
 
 def jaccard_topk(set_a: set, set_b: set) -> float:
-    """Klassischer Jaccard-Index zweier Mengen."""
     if not set_a and not set_b:
         return 0.0
     inter = len(set_a & set_b)
@@ -140,44 +77,18 @@ def jaccard_topk(set_a: set, set_b: set) -> float:
     return inter / union if union else 0.0
 
 
-# =============================================================================
-# SBERT-CENTROIDE (aus 384D-Embeddings + Cluster-Labels berechnet)
-# =============================================================================
-#
-# step01_topic_modeling.py persistiert in model_results.pkl ein Dict mit:
-#   - 'labels'             : ndarray [n_docs]       Cluster-Label pro Dokument
-#   - 'embeddings_sbert'   : ndarray [n_docs, 384]  Original-SBERT-Embeddings
-#   - 'embeddings_reduced' : ndarray [n_docs, 15]   UMAP-reduzierte Embeddings
-#
-# Methodisch wichtig: Für phasen-übergreifende Vergleiche verwenden wir
-# zwingend die Original-SBERT-Embeddings (384D), NICHT die UMAP-reduzierten.
-# UMAP ist unbeaufsichtigt pro Phase gefittet — die 15D-Räume sind nicht
-# kommensurabel zwischen Phasen. Das 384D-SBERT-Space ist hingegen über das
-# gemeinsame Modell (all-MiniLM-L6-v2) global stabil.
 
 def try_load_topic_centroids(
     out_dir: Path, topic_ids: list[int]
 ) -> np.ndarray | None:
-    """Berechnet Topic-Centroide aus den persistierten 384D-SBERT-Embeddings.
-
-    Args:
-        out_dir   : Pfad zu output_phaseN/, enthält model_results.pkl
-        topic_ids : geordnete Liste der Topic-IDs, deren Centroide zurück-
-                    gegeben werden sollen (in dieser Reihenfolge)
-
-    Returns:
-        ndarray der Form (len(topic_ids), 384) mit gemittelten SBERT-
-        Embeddings pro Topic. None bei fehlendem Pickle oder unerwartetem
-        Format. Topics ohne Dokumente erhalten Null-Vektoren.
-    """
     pkl = out_dir / "model_results.pkl"
     if not pkl.exists():
         return None
     try:
-        import pickle  # lokal — vermeidet Modul-Top-Level-Cost
+        import pickle
         with pkl.open("rb") as f:
             obj = pickle.load(f)
-    except Exception as e:  # nosec — alle Fehlertypen abfangen
+    except Exception as e:
         print(f"  [info] Pickle nicht ladbar ({type(e).__name__}): "
               f"{str(e)[:80]}")
         return None
@@ -204,14 +115,11 @@ def try_load_topic_centroids(
         mask = labels == t
         n = int(mask.sum())
         if n == 0:
-            continue  # Null-Vektor bleibt; Cosine wird 0 sein
+            continue
         centroids[i] = embs[mask].mean(axis=0)
     return centroids
 
 
-# =============================================================================
-# MATCHING
-# =============================================================================
 
 def compute_pairwise_scores(
     p1_kw: pd.DataFrame,
@@ -221,10 +129,6 @@ def compute_pairwise_scores(
     p1_dir: Path,
     p2_dir: Path,
 ) -> pd.DataFrame:
-    """Liefert long-form DataFrame mit allen Topic-Paar-Scores.
-
-    Spalten: phase1_topic, phase2_topic, cosine, jaccard, hybrid
-    """
     vocab = build_vocab(p1_kw, p2_kw)
     print(f"Gemeinsames Vokabular: {len(vocab):,} Keywords")
 
@@ -233,21 +137,15 @@ def compute_pairwise_scores(
     print(f"Phase 1 Topic-Matrix: {M1.shape}")
     print(f"Phase 2 Topic-Matrix: {M2.shape}")
 
-    cos_kw = cosine_similarity(M1, M2)  # [n1, n2]
+    cos_kw = cosine_similarity(M1, M2)
     print(f"Repräsentations-Cosine berechnet: shape={cos_kw.shape}")
 
-    # Optional SBERT-Centroid-Cosine, ersetzt cos_kw, falls geladen.
-    # Centroide werden direkt zu topics1/topics2 ausgerichtet — kein
-    # nachträgliches Slicing/Alignment mehr nötig.
     cos_used = cos_kw
     sbert_active = False
     if use_sbert:
         cen1 = try_load_topic_centroids(p1_dir, topics1)
         cen2 = try_load_topic_centroids(p2_dir, topics2)
         if cen1 is not None and cen2 is not None:
-            # Null-Centroid-Detektion: Topics ohne Dokumente liefern Null-Vektoren,
-            # die in der Cosine-Berechnung NaN ergeben würden. Sklearn handhabt
-            # das via Norm-Division — Null-Vektoren werden zu Cosine 0.
             cos_sbert = cosine_similarity(cen1, cen2)
             cos_used = cos_sbert
             sbert_active = True
@@ -261,7 +159,6 @@ def compute_pairwise_scores(
         else:
             print("[info] SBERT-Centroide nicht verfügbar, Fallback c-TF-IDF.")
 
-    # Jaccard auf Top-K Keyword-Sets (kw_df ist bereits topk-beschränkt)
     p1_sets = {t: set(g["keyword"])
                for t, g in p1_kw.groupby("topic")}
     p2_sets = {t: set(g["keyword"])
@@ -284,13 +181,6 @@ def compute_pairwise_scores(
 
 
 def best_matches(scores: pd.DataFrame) -> pd.DataFrame:
-    """Pro phase1_topic das beste phase2-Match (und vice versa).
-
-    Liefert eine annotierte Tabelle mit:
-      - rank_p1_to_p2: Rang dieses p2-Topics für p1 (1 = best)
-      - rank_p2_to_p1: Rang dieses p1-Topics für p2 (1 = best)
-      - mutual_best: True, wenn beide Ränge = 1.
-    """
     df = scores.copy()
     df["rank_p1_to_p2"] = (
         df.sort_values(["phase1_topic", "hybrid"], ascending=[True, False])
@@ -304,9 +194,6 @@ def best_matches(scores: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# =============================================================================
-# REPORT
-# =============================================================================
 
 def write_report(
     matches: pd.DataFrame,
@@ -320,7 +207,6 @@ def write_report(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Top-3-Keywords pro Topic für lesbare Ausgabe
     p1_top = (p1_kw.sort_values(["topic", "score"], ascending=[True, False])
               .groupby("topic").head(3)
               .groupby("topic")["keyword"].apply(lambda x: ", ".join(x)))
@@ -331,25 +217,21 @@ def write_report(
     matches["phase1_keywords"] = matches["phase1_topic"].map(p1_top)
     matches["phase2_keywords"] = matches["phase2_topic"].map(p2_top)
 
-    # Vollständige Pair-Score-Tabelle
     full_path = out_dir / "topic_matches_full.csv"
     matches.to_csv(full_path, index=False)
     print(f"\nAlle Topic-Paar-Scores: {full_path.name}  ({len(matches):,} Zeilen)")
 
-    # Best-Match pro Phase-1-Topic (rang 1)
     best_p1 = matches[matches["rank_p1_to_p2"] == 1].copy()
     best_p1 = best_p1.sort_values("hybrid", ascending=False)
     best_path = out_dir / "topic_matches_best_p1_to_p2.csv"
     best_p1.to_csv(best_path, index=False)
     print(f"Beste P2-Matches je P1-Topic: {best_path.name}")
 
-    # Reziproke Matches
     mutual = matches[matches["mutual_best"]].copy()
     mutual_path = out_dir / "topic_matches_mutual.csv"
     mutual.sort_values("hybrid", ascending=False).to_csv(mutual_path, index=False)
     print(f"Mutual-Best Matches: {mutual_path.name}  ({len(mutual)} Paare)")
 
-    # Diagnostik-Bericht
     diag = []
     diag.append("Cross-Phase Topic Matching — Diagnostik")
     diag.append("=" * 60)
@@ -366,7 +248,6 @@ def write_report(
                 f"({len(mutual) / max(n_p1, n_p2) * 100:.1f}% des größeren Sets)")
     diag.append("")
 
-    # Verteilung der Best-Match-Hybrid-Scores
     hyb = best_p1["hybrid"].describe()
     diag.append("Best-P1→P2 Hybrid-Score-Verteilung:")
     for k, v in hyb.items():
@@ -398,9 +279,6 @@ def write_report(
     print(f"Diagnostik-Bericht: {diag_path.name}")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)

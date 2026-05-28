@@ -1,24 +1,3 @@
-"""
-SCHRITT 4: Visualisierungen — Signalprofile und Ergebnisdarstellung (Pipeline V2)
-==================================================================================
-
-Generiert alle Visualisierungen für den F3-Prototyp V2:
-  1. Radar-Profile: Mittlere Dimensionsscores pro Signaltyp (argmax-Repräsentant)
-  2. Extended TEM: Ebadi-Quadranten + Epistemische Offenheit als Bubble
-  3. Dimensionsheatmap: Alle Topics × 5 Dimensionen
-  4. Top Weak Signals: Individuelle Detail-Radars
-  5. Temporale Evolution: Signal-Typ-Komposition über Zeit
-  6. Membership-Heatmap: kontinuierliche Klassenzugehörigkeiten (V2-Mehrwert)
-
-V2-Hinweis: Der „signal_type" pro Topic wird hier on-demand als argmax über die
-vier Memberships {m_ws, m_trend, m_ec, m_latent} berechnet. Das ist eine
-deterministische Reduktion der kontinuierlichen Membership-Vektoren zu einem
-Repräsentanten — ausschließlich für die nicht-kontinuierlichen Plot-Typen
-(Stacked Area, Heatmap-Sortierung). Die Primärgröße der Pipeline V2 bleibt
-der Membership-Vektor selbst.
-
-Autor: Ben Borowski
-"""
 
 import pandas as pd
 import numpy as np
@@ -36,12 +15,9 @@ from config import (
 )
 
 
-# Achsenbeschriftungen der Radar-/Heatmap-Plots — Dimensions-Kuerzel.
-# Interne DataFrame-Spaltennamen (DIM_NAMES) bleiben die langen Bezeichner.
 DIM_LABELS_RADAR = DIM_SHORT_LIST
 
 
-# Mapping Membership-Spalte → Signaltyp-Label (für argmax-Repräsentation)
 MEMBERSHIP_COLUMNS = ["m_ws", "m_trend", "m_ec", "m_latent"]
 MEMBERSHIP_LABELS = {
     "m_ws":     "Weak Signal",
@@ -52,17 +28,6 @@ MEMBERSHIP_LABELS = {
 
 
 def derive_argmax_representation(memberships: pd.DataFrame) -> pd.DataFrame:
-    """V2-Helfer: Reduziert Membership-Vektoren auf argmax-Repräsentant.
-
-    Erzeugt die Spalten:
-      - signal_type:  argmax über {m_ws, m_trend, m_ec, m_latent}
-      - ws_distance:  1 − m_ws (Kompatibilitäts-Proxy für Top-WS-Ranking)
-
-    Verwendet ausschließlich für deterministische Plot-Typen (Sortierung,
-    Stacked-Area). Die Primärgröße der V2-Pipeline bleibt der kontinuierliche
-    Membership-Vektor — diese Reduktion ist sekundär und nur visualisierungs-
-    bedingt.
-    """
     df = memberships.copy()
     argmax_col = df[MEMBERSHIP_COLUMNS].idxmax(axis=1)
     df["signal_type"]  = argmax_col.map(MEMBERSHIP_LABELS)
@@ -70,12 +35,8 @@ def derive_argmax_representation(memberships: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# =============================================================================
-# 1. RADAR-PROFILE
-# =============================================================================
 
 def plot_radar_profiles(classified: pd.DataFrame, output_path: str):
-    """Mittlere Radar-Profile pro Signaltyp."""
     fig, ax = plt.subplots(1, 1, figsize=(9, 9), subplot_kw=dict(polar=True))
 
     angles = np.linspace(0, 2 * np.pi, len(DIM_NAMES), endpoint=False).tolist()
@@ -95,7 +56,6 @@ def plot_radar_profiles(classified: pd.DataFrame, output_path: str):
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=11)
-    # Dimensions-Kuerzel in Dimensionsfarbe einfaerben (vgl. Abb. 3.2)
     for label, dim in zip(ax.get_xticklabels(), DIM_NAMES):
         label.set_color(DIM_COLORS[dim])
         label.set_fontweight("bold")
@@ -110,29 +70,10 @@ def plot_radar_profiles(classified: pd.DataFrame, output_path: str):
     print(f"  Radar-Profile gespeichert: {output_path}")
 
 
-# =============================================================================
-# 2. EXTENDED TEM (Topic Emergence Map)
-# =============================================================================
 
 def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
                       topic_keywords: dict, output_path: str):
-    """
-    Erweiterte Topic Emergence Map nach Ebadi (2026):
-    - x-Achse: Average Topic Proportion
-    - y-Achse: Annualized Growth Rate
-    - Farbe: Signaltyp
-    - Bubble-Größe: Epistemische Offenheit
-    - Outline/Alpha: Margin-Codierung (klar / Übergang / mehrdeutig)
-
-    Topic-Beschriftungen werden bewusst nicht eingezeichnet — die hohe Topic-
-    Dichte im Quadranten unten-links macht jede individuelle Label-Annotation
-    in der TEM-Sicht unlesbar (Overplotting). Die topic-genaue Lesart erfolgt
-    ueber dimension_heatmap.png und membership_heatmap.png; die TEM bleibt
-    eine reine Struktur- und Verteilungssicht.
-    """
-    # topic_keywords wird nicht mehr fuer Annotationen benoetigt, der Parameter
-    # bleibt aus Kompatibilitaetsgruenden zur Aufrufstelle erhalten.
-    del topic_keywords  # explizit als ungenutzt markieren
+    del topic_keywords
     tem = tem_metrics.copy().set_index("topic")
     merged = tem.join(
         classified[["signal_type", "Epistemische Offenheit", "margin"]],
@@ -147,9 +88,6 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
     ax.axhline(y=y_thresh, color="gray", linestyle="--", alpha=0.4)
     ax.axvline(x=x_thresh, color="gray", linestyle="--", alpha=0.4)
 
-    # Quadrantenbeschriftung — fest in den Plot-Ecken positioniert
-    # (axes-relative Koordinaten via transAxes), damit sie unabhaengig von
-    # der Datenwolke keine Bubbles ueberlagern.
     props = dict(fontsize=11, alpha=0.35, fontweight="bold",
                  transform=ax.transAxes)
     ax.text(0.015, 0.985,
@@ -165,14 +103,6 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
             "ESTABLISHED\n(hohe Proportion, Rückgang)",
             ha="right", va="bottom", **props)
 
-    # Bubbles plotten — Margin steuert Alpha und Outline:
-    #   Margin >= 0.10 : klare Argmax-Zuordnung (opak, weiße Outline)
-    #   0.05 <= Margin < 0.10 : Übergangsfall (transparenter, gestrichelte
-    #                           Outline) — Quadrantenzuordnung interpretativ
-    #                           offen
-    #   Margin < 0.05 : konstitutiv mehrdeutig (am durchscheinendsten,
-    #                   gestrichelte Outline) — Quadrantenposition ist hier
-    #                   nicht als Klassifikation, sondern als Profil zu lesen.
     for idx, row in merged.iterrows():
         color = SIGNAL_COLORS.get(row["signal_type"], "#999999")
         eo = row["Epistemische Offenheit"]
@@ -189,10 +119,6 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
                    s=size, c=color, alpha=b_alpha,
                    edgecolors=b_edge, linewidth=b_lw, linestyle=b_ls)
 
-    # Legende — drei Gruppen (Signaltyp / EO-Skala / Margin), durch leere
-    # Spacer-Eintraege visuell getrennt und ausserhalb des Plotbereichs
-    # platziert, damit jeder Eintrag ausreichend vertikalen Raum hat und keine
-    # Datenpunkte mehr ueberdeckt werden.
     spacer = mpatches.Patch(color="none", label="")
     header_signal = mpatches.Patch(color="none", label="$\\bf{Signaltyp}$")
     header_eo     = mpatches.Patch(color="none", label="$\\bf{Bubble\\!-\\!Groesse:\\ EO}$")
@@ -203,9 +129,6 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
                 for l, c in SIGNAL_COLORS.items()]
     handles.append(spacer)
     handles.append(header_eo)
-    # EO-Skala: vergroesserter Spannweiten-Kontrast (80 vs 500) — die
-    # Plot-Skalierung bleibt 50 + |EO|*300; das Legenden-Sample dient
-    # schematisch der Verdeutlichung der Spannweite.
     handles.append(plt.scatter([], [], s=80, c="gray", alpha=0.5,
                                edgecolors="#666666", linewidth=0.4,
                                label="Niedrige EO"))
@@ -214,10 +137,6 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
                                label="Hohe EO"))
     handles.append(spacer)
     handles.append(header_margin)
-    # Margin ≥ 0.10: im Plot weisse Outline (Kontrast zur farbigen Bubble);
-    # in der Legende dezent dunkelgraue Outline, damit der Eintrag auf weissem
-    # Hintergrund ueberhaupt sichtbar bleibt. Schematische Abweichung zur
-    # Plot-Darstellung ist hier gerechtfertigt — die Funktion ist die gleiche.
     handles.append(plt.scatter([], [], s=120, c="gray", alpha=0.70,
                                edgecolors="#444444", linewidth=0.8,
                                label="Margin ≥ 0.10 (klar)"))
@@ -250,22 +169,15 @@ def plot_extended_tem(classified: pd.DataFrame, tem_metrics: pd.DataFrame,
     print(f"  Extended TEM gespeichert: {output_path}")
 
 
-# =============================================================================
-# 3. DIMENSIONSHEATMAP
-# =============================================================================
 
 def plot_dimension_heatmap(classified: pd.DataFrame, topic_keywords: dict,
                            output_path: str):
-    """Heatmap: alle Topics × 5 Dimensionen, sortiert nach Signaltyp."""
     type_order = {"Weak Signal": 0, "Emerging Concept": 1,
                   "Latent/Mixed": 2, "Trend": 3}
     sorted_df = classified.copy()
     sorted_df["type_order"] = sorted_df["signal_type"].map(type_order)
     sorted_df = sorted_df.sort_values(["type_order", "ws_distance"])
 
-    # Labels erstellen — Margin (Δ) wird mit ausgewiesen, analog zur
-    # Membership-Heatmap. So bleibt die Eindeutigkeit der Argmax-Zuordnung
-    # pro Zeile auch in der Dimensions-Sicht direkt ablesbar.
     labels = []
     for idx in sorted_df.index:
         kws = topic_keywords.get(idx, [])
@@ -281,20 +193,17 @@ def plot_dimension_heatmap(classified: pd.DataFrame, topic_keywords: dict,
 
     ax.set_xticks(range(len(DIM_NAMES)))
     ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=10, rotation=0)
-    # Dimensions-Kuerzel in Dimensionsfarbe einfaerben (vgl. Abb. 3.2)
     for label, dim in zip(ax.get_xticklabels(), DIM_NAMES):
         label.set_color(DIM_COLORS[dim])
         label.set_fontweight("bold")
     ax.set_yticks(range(len(labels)))
     ax.set_yticklabels(labels, fontsize=6)
 
-    # Signaltyp-Farbe am linken Rand
     for i, (_, row) in enumerate(sorted_df.iterrows()):
         color = SIGNAL_COLORS.get(row["signal_type"], "#999999")
         ax.add_patch(plt.Rectangle((-0.7, i - 0.5), 0.3, 1,
                                     color=color, clip_on=False))
 
-    # Trennlinien zwischen Signaltypen
     prev_type = None
     for i, (_, row) in enumerate(sorted_df.iterrows()):
         if row["signal_type"] != prev_type and prev_type is not None:
@@ -311,13 +220,9 @@ def plot_dimension_heatmap(classified: pd.DataFrame, topic_keywords: dict,
     print(f"  Dimensionsheatmap gespeichert: {output_path}")
 
 
-# =============================================================================
-# 4. TOP WEAK SIGNALS DETAIL-RADARS
-# =============================================================================
 
 def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
                           output_path: str, n_top: int = 6):
-    """Individuelle Radar-Plots für die Top Weak Signals."""
     ws = classified[classified["signal_type"] == "Weak Signal"].sort_values("ws_distance")
     top_ws = ws.head(n_top)
 
@@ -337,7 +242,6 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
     angles = np.linspace(0, 2 * np.pi, len(DIM_NAMES), endpoint=False).tolist()
     angles += angles[:1]
 
-    # Ideal-WS-Profil (Median aller WS)
     ws_ideal = ws[DIM_NAMES].median().tolist()
     ws_ideal += ws_ideal[:1]
 
@@ -358,7 +262,6 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
 
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=8)
-        # Dimensions-Kuerzel in Dimensionsfarbe einfaerben (vgl. Abb. 3.2)
         for label, dim in zip(ax.get_xticklabels(), DIM_NAMES):
             label.set_color(DIM_COLORS[dim])
             label.set_fontweight("bold")
@@ -366,8 +269,6 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
         kws = topic_keywords.get(idx, [])
         kw_str = ", ".join([w for w, _ in kws[:3]])
 
-        # Margin: m_ws − max(m_trend, m_ec, m_latent) als Diagnostik
-        # der Eindeutigkeit der WS-Interpretation (kleine Margin = Übergangsfall).
         other_max = max(row["m_trend"], row["m_ec"], row["m_latent"])
         margin = row["m_ws"] - other_max
         ax.set_title(
@@ -387,13 +288,9 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
     print(f"  WS Detail-Radars gespeichert: {output_path}")
 
 
-# =============================================================================
-# 5. TEMPORALE EVOLUTION
-# =============================================================================
 
 def plot_temporal_evolution(df_topics: pd.DataFrame, classified: pd.DataFrame,
                             output_path: str):
-    """Signal-Typ-Komposition über Zeit (Proportionen + absolute Counts)."""
     df = df_topics.copy()
     df = df[df["topic"] >= 0]
 
@@ -405,7 +302,6 @@ def plot_temporal_evolution(df_topics: pd.DataFrame, classified: pd.DataFrame,
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    # Stacked Area: Proportionen
     order = ["Weak Signal", "Emerging Concept", "Latent/Mixed", "Trend"]
     cumsum = pd.DataFrame(0, index=props.index, columns=["base"])
     for st in order:
@@ -423,7 +319,6 @@ def plot_temporal_evolution(df_topics: pd.DataFrame, classified: pd.DataFrame,
     ax1.legend(fontsize=10)
     ax1.grid(True, alpha=0.2)
 
-    # Balkendiagramm: absolute Counts
     bar_data = counts.reindex(columns=order, fill_value=0)
     bar_data.plot.bar(stacked=True, ax=ax2,
                        color=[SIGNAL_COLORS[c] for c in bar_data.columns],
@@ -441,18 +336,9 @@ def plot_temporal_evolution(df_topics: pd.DataFrame, classified: pd.DataFrame,
     print(f"  Temporale Evolution gespeichert: {output_path}")
 
 
-# =============================================================================
-# 6. MEMBERSHIP-HEATMAP (V2-spezifisch: kontinuierliche Klassenzugehörigkeiten)
-# =============================================================================
 
 def plot_membership_heatmap(classified: pd.DataFrame, topic_keywords: dict,
                             output_path: str):
-    """Heatmap: Topics × 4 Memberships (V2-Kernartefakt).
-
-    Visualisiert die kontinuierlichen Klassenzugehörigkeiten ohne argmax-
-    Reduktion. Sortiert nach absteigender Margin (Top = klar zuordenbare
-    Topics, Boden = Übergangsfälle).
-    """
     sorted_df = classified.copy().sort_values("margin", ascending=False)
 
     labels = []
@@ -490,11 +376,6 @@ def plot_membership_heatmap(classified: pd.DataFrame, topic_keywords: dict,
 
 
 def plot_margin_distribution(classified: pd.DataFrame, output_path: str):
-    """Diagnostik: Verteilung der Margin (Top-1 minus Top-2 Membership).
-
-    Niedrige Margins markieren Übergangsfälle. Histogramm + zwei Schwellen-
-    Markierungen (0.05 sehr unklar; 0.10 unklar) für visuelle Inspektion.
-    """
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
 
     m = classified["margin"]
@@ -521,23 +402,17 @@ def plot_margin_distribution(classified: pd.DataFrame, output_path: str):
     print(f"  Margin-Verteilung gespeichert: {output_path}")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def run():
     print("=" * 70)
     print("SCHRITT 4: VISUALISIERUNGEN — Pipeline V2")
     print("=" * 70)
 
-    # --- Daten laden ---
-    # V2: Memberships statt Klassifikation
     memberships = pd.read_csv(
         OUTPUT_DIR / "signal_memberships.csv", index_col=0
     )
     memberships.index.name = "topic"
 
-    # Argmax-Repräsentation für deterministische Plots ableiten
     classified = derive_argmax_representation(memberships)
 
     tem_metrics = pd.read_csv(OUTPUT_DIR / "tem_metrics.csv")
@@ -546,12 +421,10 @@ def run():
     )
     dim_scores.index.name = "topic"
 
-    # Dimensionsscores in classified-DF mergen (für Radar/Heatmap)
     for col in DIM_NAMES:
         if col not in classified.columns:
             classified[col] = dim_scores[col]
 
-    # Topic Keywords laden
     kw_df = pd.read_csv(OUTPUT_DIR / "topic_keywords.csv")
     topic_keywords = {}
     for tid in classified.index:
@@ -560,10 +433,8 @@ def run():
             zip(kws["keyword"].tolist(), kws["score"].tolist())
         )
 
-    # Topic Assignments für temporale Analyse
     topic_assignments = pd.read_csv(OUTPUT_DIR / "topic_assignments.csv")
 
-    # --- Visualisierungen generieren ---
     out = str(OUTPUT_DIR)
 
     print("\n1. Radar-Profile (argmax-basierte Repräsentation)...")

@@ -1,69 +1,9 @@
-"""
-Datenaufbereitung: KATI-CSVs (Dr. John, Fraunhofer FKIE) → Pipeline-Format
-==========================================================================
-
-Konvertiert die KATI-Lieferung in das von step01_topic_modeling.py erwartete
-Eingabeformat (Title, Abstract, Year, Document Type, Source Title, Author
-Keywords, Keywords Plus, WoS Categories, RTW, CTW …).
-
-Pro Phase werden acht KATI-CSVs auf der gemeinsamen UID gemergt:
-  - QC_<phase>_01.csv               → Baseline (Title, Year, DOI, Times Cited,
-                                       DocType, Abstract)
-  - QC_<phase> journals.csv         → Source Title          (← "journal")
-  - QC_<phase>_auto KW.csv          → Keywords Plus          (← "autotagList")
-  - QC_<phase>_manual KW.csv        → Author Keywords        (← "manualtagList")
-  - QC_<phase> WoS Categories.csv   → WoS Categories + RTW + CTW
-                                       (← "topicNameL", "RTW", "CTW")
-  - QC_<phase> Adress Org.csv       → Affiliations + Addresses
-                                       (← "orgList" / "adrList")           — DI2/DI3
-  - QC_<phase> Countries.csv        → Country List           (← "countryList")
-                                       (algorithmisch bereinigte ISO-3-Codes) — DI3
-  - QC_<phase> Citation Topics.csv  → Citation Topic Macro/Meso/Micro
-                                       (← "cTopicLabel" je nach "type")     — post-hoc
-
-Die Spaltennamen werden exakt auf die kanonischen WoS-Spalten in
-``config.WOS_COLUMNS`` abgebildet, damit step02_indicators.py via CANON_COLUMNS
-ohne Sonderbehandlung lesen kann.
-
-Mit der Mai-2026-Tranche von Dr. John liegen Author Full Names und ORCIDs
-nun vor; DI1 ist damit operativ. Cited References werden nicht als
-Indikator-Eingang verwendet (Validierungs-Spur, separat zu evaluieren) und
-bleiben als leere Spalte erhalten, ohne die Pipeline abzubrechen.
-
-Citation Topics werden nicht als Indikator verwendet, sondern als deskriptive
-Charakterisierungsschicht für die Ergebnisinterpretation (step04
-Visualisierungen / Cross-Phase-Tabellen) im Output mitgeführt.
-
-Aufruf:
-    python prepare_kati_data.py            # idempotent
-    python prepare_kati_data.py --force    # neu konvertieren
-
-Erzeugt:
-    ../wos_qc_phase1_2000_2015.csv
-    ../wos_qc_phase2_2016_2025.csv
-
-Autor: Ben Borowski
-"""
 
 import os
 from pathlib import Path
 
 import pandas as pd
 
-# =============================================================================
-# PFADE — KATI-Datenverzeichnis konfigurierbar via Umgebungsvariable
-# =============================================================================
-#
-# Setze die Umgebungsvariable ``KATI_DATA_DIR`` auf das Verzeichnis, das
-# die beiden Phasen-Unterordner ("Phase 1 2000-2015", "Phase 2 2016-2025")
-# enthaelt. Standard-Fallback: ``./data/kati`` relativ zum Repository-Root.
-#
-# Beispiel:
-#     export KATI_DATA_DIR="/pfad/zu/Data Kati"
-#     python prepare_kati_data.py
-#
-# Der eigentliche WoS/KATI-Korpus ist aus Lizenzgruenden nicht im
-# Repository enthalten; siehe README.md ("Daten").
 
 _REPO_ROOT = Path(__file__).resolve().parent
 _DEFAULT_KATI_PATH = _REPO_ROOT / "data" / "kati"
@@ -77,10 +17,7 @@ KATI_BASE = next(
     None,
 )
 
-# Ziel-Verzeichnis: gleiche Ebene wie das bestehende
-# scopus_f3_v2_original.csv, damit DATA_PATH in config.py minimal-invasiv
-# umzustellen ist.
-OUT_DIR = Path(__file__).parent.parent  # → F3_Prototyp/
+OUT_DIR = Path(__file__).parent.parent
 
 PHASES = [
     {
@@ -97,51 +34,35 @@ PHASES = [
     },
 ]
 
-# Spalten, die step01_topic_modeling.py / step02_indicators.py erwarten.
-# Felder, die in der aktuellen KATI-Lieferung noch nicht enthalten sind
-# (Author Full Names, ORCIDs, Cited References), werden mit Leerstring
-# befüllt — die zugehörigen Indikatoren (DI1, Schritt 2b) liefern dann NaN.
 PIPELINE_OUTPUT_COLUMNS = [
     "Title",
     "Year",
     "Abstract",
     "Document Type",
-    "Source Title",          # ← KATI: journal
-    "Author Keywords",       # ← KATI: manualtagList
-    "Keywords Plus",         # ← KATI: autotagList
-    "WoS Categories",        # ← KATI: topicNameL
-    "Times Cited, WoS Core", # ← KATI: timescited
-    "RTW",                   # ← KATI: RTW (Reference Topic Width)
-    "CTW",                   # ← KATI: CTW (Citation Topic Width)
+    "Source Title",
+    "Author Keywords",
+    "Keywords Plus",
+    "WoS Categories",
+    "Times Cited, WoS Core",
+    "RTW",
+    "CTW",
     "UID",
     "DOI",
-    # Adress Org (DI2/DI3) — Dr. John Lieferung Mai 2026
-    "Affiliations",          # ← KATI: orgList    (Semikolon-normalisiert)
-    "Addresses",             # ← KATI: adrList    (Semikolon-normalisiert)
-    # Countries (DI3, bevorzugte Quelle) — Dr. John Lieferung Mai 2026
-    "Country List",          # ← KATI: countryList (ISO-3, Semikolon-norm.)
-    "Country Count",         # ← KATI: countryCount
-    # Citation Topics (post-hoc, kein Indikator) — Dr. John Lieferung Mai 2026
-    "Citation Topic Macro",  # ← KATI: cTopicLabel where type=macro
-    "Citation Topic Meso",   # ← KATI: cTopicLabel where type=meso
-    "Citation Topic Micro",  # ← KATI: cTopicLabel where type=micro
-    # Authors + ORCIDs (DI1) — Dr. John Lieferung Mai 2026
-    "Author Full Names",     # ← KATI Authors ORCID: author (wide, sem.-getr.)
-    "ORCIDs",                # ← KATI Authors ORCID: WoS-Format Name/ORCID
-    # Cited References (Validierungs-Spur, kein Indikator-Eingang)
+    "Affiliations",
+    "Addresses",
+    "Country List",
+    "Country Count",
+    "Citation Topic Macro",
+    "Citation Topic Meso",
+    "Citation Topic Micro",
+    "Author Full Names",
+    "ORCIDs",
     "Cited References",
 ]
 
 
-# =============================================================================
-# HILFSFUNKTIONEN
-# =============================================================================
 
 def _read_kati_csv(path: Path) -> pd.DataFrame:
-    """Liest eine KATI-CSV ein und säubert KATI-typische Artefakte:
-    trailing Whitespaces in Headern, leere Trailing-Spalten ("Unnamed:..."),
-    quotierte Werte mit Leading/Trailing-Spaces, "nan"-Strings.
-    """
     df = pd.read_csv(path, skipinitialspace=True)
     df.columns = [c.strip() for c in df.columns]
     df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
@@ -154,17 +75,12 @@ def _read_kati_csv(path: Path) -> pd.DataFrame:
 
 
 def clean_doctype(value: str) -> str:
-    """KATI liefert teils 'article|article' oder 'article|early access article'.
-    Wir nehmen den ersten Teil als kanonischen Document Type."""
     if not isinstance(value, str) or not value.strip():
         return ""
     return value.split("|")[0].strip()
 
 
 def normalize_wos_categories(value: str) -> str:
-    """KATI liefert WoS Categories als Pipe-getrennte Liste (`topicNameL`).
-    Wandelt in Semikolon-getrennte Form um — kompatibel mit step02_indicators.
-    """
     if not isinstance(value, str) or not value.strip():
         return ""
     parts = [p.strip() for p in value.split("|") if p.strip()]
@@ -172,9 +88,6 @@ def normalize_wos_categories(value: str) -> str:
 
 
 def normalize_keyword_list(value: str) -> str:
-    """KATI liefert Keyword-Listen ebenfalls Pipe-getrennt; auf Semikolon
-    normalisieren (Pipeline-Konvention für Author Keywords / Keywords Plus).
-    """
     if not isinstance(value, str) or not value.strip():
         return ""
     parts = [p.strip() for p in value.split("|") if p.strip()]
@@ -182,11 +95,6 @@ def normalize_keyword_list(value: str) -> str:
 
 
 def normalize_country_list(value: str) -> str:
-    """KATI Countries.csv liefert `countryList` als pipe-getrennte Liste
-    kleingeschriebener ISO-3-Codes (z. B. "che|usa"). Wir normalisieren auf
-    Semikolon-getrennte Großschreibung ("CHE; USA"), damit step02_indicators
-    deterministisch parsen kann (Counter, HHI).
-    """
     if not isinstance(value, str) or not value.strip():
         return ""
     parts = [p.strip().upper() for p in value.split("|") if p.strip()]
@@ -194,10 +102,6 @@ def normalize_country_list(value: str) -> str:
 
 
 def normalize_org_list(value: str) -> str:
-    """KATI Adress Org.csv `orgList` / `adrList` sind pipe-getrennte Listen.
-    Auf Semikolon normalisieren — kompatibel mit step02_indicators
-    (DI2 splittet `Affiliations` auf ";", DI3 splittet `Addresses` auf ";").
-    """
     if not isinstance(value, str) or not value.strip():
         return ""
     parts = [p.strip() for p in value.split("|") if p.strip()]
@@ -205,12 +109,6 @@ def normalize_org_list(value: str) -> str:
 
 
 def pivot_citation_topics(ct_df: pd.DataFrame) -> pd.DataFrame:
-    """Citation Topics liegen in long format vor: pro UID je eine Zeile für
-    `type ∈ {macro, meso, micro}`. Pivot auf wide-format mit drei Spalten
-    `Citation Topic Macro/Meso/Micro` (Wert = `cTopicLabel` auf jeweiliger
-    Hierarchieebene). Bei mehrfacher Zuweisung auf gleicher Ebene wird der
-    erste Eintrag genommen (Stabilität für post-hoc Charakterisierung).
-    """
     if ct_df.empty:
         return pd.DataFrame(columns=[
             "UID", "Citation Topic Macro", "Citation Topic Meso",
@@ -221,7 +119,6 @@ def pivot_citation_topics(ct_df: pd.DataFrame) -> pd.DataFrame:
     df["type"] = df["type"].astype(str).str.strip().str.lower()
     df["cTopicLabel"] = df["cTopicLabel"].astype(str).str.strip()
 
-    # Erste Zuweisung pro (UID, type) behalten
     df = df.drop_duplicates(subset=["UID", "type"], keep="first")
 
     wide = df.pivot(index="UID", columns="type", values="cTopicLabel")
@@ -240,32 +137,24 @@ def pivot_citation_topics(ct_df: pd.DataFrame) -> pd.DataFrame:
     return wide
 
 
-# =============================================================================
-# PHASEN-MERGE
-# =============================================================================
 
 def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None:
     print(f"\n=== {label} ===")
     print(f"Quelle: {phase_dir}")
 
-    # --- Baseline ---
     baseline_path = phase_dir / f"QC_{tag}_01.csv"
     df = _read_kati_csv(baseline_path)
     n_in = len(df)
 
-    # Fehlende Abstracts droppen — ohne Text kein SBERT-Embedding
     df = df[df["abstract"].notna() & (df["abstract"] != "")].copy()
     n_after_abstract = len(df)
     print(f"  Baseline: {n_in} → {n_after_abstract} (Abstracts nicht leer)")
 
-    # Document Type konsolidieren
     df["docTypeList"] = df["docTypeList"].apply(clean_doctype)
 
-    # Nach UID deduplizieren
     df = df.drop_duplicates(subset="UID", keep="first").copy()
     print(f"  Baseline: dedupliziert auf {len(df)} eindeutige UIDs")
 
-    # --- Journals (Source Title) ---
     journals_path = phase_dir / f"QC_{tag} journals.csv"
     if journals_path.exists():
         jdf = _read_kati_csv(journals_path)
@@ -277,11 +166,9 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         print(f"  Journals: Datei fehlt — Source Title bleibt leer")
         df["journal"] = ""
 
-    # --- Auto-Keywords (Keywords Plus) ---
     auto_path = phase_dir / f"QC_{tag}_auto KW.csv"
     if auto_path.exists():
         adf = _read_kati_csv(auto_path)
-        # Spaltenname `uid` (lowercase) — auf UID umbenennen
         adf = adf.rename(columns={"uid": "UID"})
         adf = adf[["UID", "autotagList"]].drop_duplicates(subset="UID")
         df = df.merge(adf, on="UID", how="left")
@@ -292,7 +179,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         print(f"  Keywords Plus: Datei fehlt — Spalte bleibt leer")
         df["autotagList"] = ""
 
-    # --- Manual-Keywords (Author Keywords) ---
     manual_path = phase_dir / f"QC_{tag}_manual KW.csv"
     if manual_path.exists():
         mdf = _read_kati_csv(manual_path)
@@ -308,12 +194,10 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         print(f"  Author Keywords: Datei fehlt — Spalte bleibt leer")
         df["manualtagList"] = ""
 
-    # --- WoS Categories + RTW + CTW ---
     wc_path = phase_dir / f"QC_{tag} WoS Categories.csv"
     if wc_path.exists():
         wdf = _read_kati_csv(wc_path)
         wdf = wdf.rename(columns={"uid": "UID"})
-        # Spalten: UID, year, TC, RTW, CTW, topicNameL
         keep = [c for c in ["UID", "topicNameL", "RTW", "CTW"] if c in wdf.columns]
         wdf = wdf[keep].drop_duplicates(subset="UID")
         df = df.merge(wdf, on="UID", how="left")
@@ -335,7 +219,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["RTW"] = ""
         df["CTW"] = ""
 
-    # --- Adress Org (Affiliations + Addresses) ---
     addr_path = phase_dir / f"QC_{tag} Adress Org.csv"
     if addr_path.exists():
         odf = _read_kati_csv(addr_path)
@@ -358,7 +241,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["orgList"] = ""
         df["adrList"] = ""
 
-    # --- Countries (saubere ISO-Codes für DI3) ---
     cntry_path = phase_dir / f"QC_{tag} Countries.csv"
     if cntry_path.exists():
         cdf = _read_kati_csv(cntry_path)
@@ -384,11 +266,9 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["countryList"] = ""
         df["countryCount"] = ""
 
-    # --- Citation Topics (post-hoc Charakterisierung) ---
     ct_path = phase_dir / f"QC_{tag} Citation Topics.csv"
     if ct_path.exists():
         ctdf_raw = _read_kati_csv(ct_path)
-        # Spalten: title, UID, year, cTopicLabel, topCLabel, type
         needed = {"UID", "cTopicLabel", "type"}
         if needed.issubset(ctdf_raw.columns):
             ctdf = pivot_citation_topics(ctdf_raw[list(needed)])
@@ -409,11 +289,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["Citation Topic Meso"] = ""
         df["Citation Topic Micro"] = ""
 
-    # --- Authors + ORCIDs (DI1) — Dr. John Lieferung Mai 2026 ---
-    # Long format: eine Zeile pro (Publikation, Autor); Reihenfolge in der
-    # CSV entspricht der Autor-Position auf dem Paper. Pivot auf wide
-    # erhaelt diese Reihenfolge, damit DI1 die ORCIDs positional matchen
-    # kann.
     authors_path = phase_dir / f"QC_{tag} Authors ORCID.csv"
     if authors_path.exists():
         adf = _read_kati_csv(authors_path)
@@ -428,8 +303,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
             names  = group["author"].tolist()
             orcids = group["orcid"].tolist()
             afn = "; ".join(names)
-            # WoS-Format "Name/ORCID" emittieren; leerer Slot bei fehlender
-            # ORCID — DI1 erkennt das "/" als ORCID-Trigger.
             orc_entries = [
                 f"{n}/{o}" if (o and len(o) >= 10) else ""
                 for n, o in zip(names, orcids)
@@ -443,7 +316,7 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
             auth_wide = adf.groupby("UID", sort=False, group_keys=False) \
                            .apply(_agg, include_groups=False) \
                            .reset_index()
-        except TypeError:  # pandas < 2.2
+        except TypeError:
             auth_wide = adf.groupby("UID", sort=False, group_keys=False) \
                            .apply(_agg) \
                            .reset_index()
@@ -469,7 +342,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         df["Author Full Names"] = ""
         df["ORCIDs"]            = ""
 
-    # --- Spalten-Mapping → Pipeline-Format ---
     out = pd.DataFrame({
         "Title":                  df["title"],
         "Year":                   pd.to_numeric(df["year"], errors="coerce")
@@ -488,30 +360,23 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
                                                 errors="coerce"),
         "UID":                    df["UID"],
         "DOI":                    df["doi"],
-        # Adress Org (DI2/DI3)
         "Affiliations":           df.get("orgList", ""),
         "Addresses":              df.get("adrList", ""),
-        # Countries (DI3, bevorzugte Quelle)
         "Country List":           df.get("countryList", ""),
         "Country Count":          pd.to_numeric(df.get("countryCount", pd.NA),
                                                 errors="coerce").astype("Int64"),
-        # Citation Topics (post-hoc, kein Indikator)
         "Citation Topic Macro":   df.get("Citation Topic Macro", ""),
         "Citation Topic Meso":    df.get("Citation Topic Meso", ""),
         "Citation Topic Micro":   df.get("Citation Topic Micro", ""),
-        # Authors + ORCIDs (DI1) — KATI Mai-2026-Tranche
         "Author Full Names":      df.get("Author Full Names", ""),
         "ORCIDs":                 df.get("ORCIDs", ""),
-        # Cited References: Validierungs-Spur, kein 16-Indikator-Eingang
         "Cited References":       "",
     })
 
-    # Year-NaN-Records droppen
     n_before_year = len(out)
     out = out.dropna(subset=["Year"]).copy()
     print(f"  Records: {n_before_year} → {len(out)} (Jahresangabe vorhanden)")
 
-    # Speichern
     out = out[PIPELINE_OUTPUT_COLUMNS]
     out.to_csv(dst_path, index=False)
     print(f"\nGeschrieben: {dst_path}  ({len(out)} Records)")
@@ -520,7 +385,6 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
     for dt, n in out["Document Type"].value_counts().head(5).items():
         print(f"    {dt}: {n}")
 
-    # Diagnose: Vollständigkeit der wichtigsten Felder
     print("  Feld-Vollständigkeit:")
     for col in ["Source Title", "Author Keywords", "Keywords Plus",
                 "WoS Categories", "Affiliations", "Addresses", "Country List",
@@ -536,16 +400,8 @@ def prepare_phase(phase_dir: Path, tag: str, dst_path: Path, label: str) -> None
         print(f"    {col}: {n_filled}/{len(out)} ({pct:.1f}%)")
 
 
-# =============================================================================
-# EINSTIEGSPUNKT
-# =============================================================================
 
 def main(force: bool = False) -> None:
-    """Konvertiert die KATI-Tranchen in Pipeline-Format.
-
-    Standard: idempotent — Phasen, deren Ziel-CSV bereits existiert, werden
-    übersprungen. Mit ``force=True`` wird neu konvertiert.
-    """
     print("KATI → Pipeline-Format Konvertierung")
     print("=" * 60)
     if KATI_BASE is None or not KATI_BASE.exists():

@@ -1,70 +1,3 @@
-"""
-SCHRITT 2b (KATI-Runner): Reference-Overlap auf Basis einer KATI-Edge-Liste
-==========================================================================
-
-Hintergrund
------------
-Das Originalmodul ``step02b_reference_overlap.py`` erwartet die
-WoS-Spalte ``Cited References`` (Semikolon-separierter String pro Dokument)
-und parst diese inline. Im vorliegenden Projekt liegen die Zitationsdaten
-jedoch als separate KATI-Edge-Liste im Long-Format vor:
-
-    UID, UID_ref
-
-Diese Form ist robuster (kein Excel-Zeilenlimit auf Inline-Strings; keine
-String-Parsing-Heuristiken), erzwingt aber einen anderen Datenpfad.
-Außerdem überschreitet die Phase-2-Datei das Excel-Zeilenlimit
-(1.048.576), weshalb der Umweg über das Spreadsheet ausscheidet und direkt
-mit pandas eingelesen werden muss.
-
-Dieser Runner kapselt diesen alternativen Datenpfad, ohne das
-inhaltlich-methodische Modul (``step02b_reference_overlap.py``) zu
-verändern. Die methodische Logik (Mean Pairwise Jaccard, globales
-Baseline-Sample, Sampling-Strategie) wird unverändert aus dem Original-
-modul importiert. Damit bleibt die methodische Quelle der Wahrheit
-ein einziges, reviewfähiges Modul.
-
-Datenquellen
-------------
-  KATI_REFS  CSV im Long-Format mit Spalten ``UID``, ``UID_ref``.
-             Jede Zeile = eine Zitation (Quell-UID zitiert Ziel-UID).
-  TOPICS     CSV mit Topic-Zuweisungen pro Dokument (mind. ``UID``,
-             ``topic``).
-
-Methodik
---------
-  RO_topic        Mean paarweiser Jaccard der Ref-Mengen innerhalb des
-                  Topics (max_pairs=200, seed=42).
-  RO_global       Gleiche Metrik auf ein Zufalls-Sample (n=500) aus dem
-                  Korpus aller Dokumente mit ≥ 1 Referenz.
-  ratio_vs_global RO_topic / RO_global; > 1 = überzufällig kohärent,
-                  ≈ 1 = referenz-heterogenes Bündel.
-
-Output pro Phase
-----------------
-  reference_overlap_<phase>.csv mit Spalten:
-    topic, n_docs, n_docs_with_refs, coverage, RO_topic, RO_global,
-    n_refs_mean, ratio_vs_global
-
-Reproduzierbarkeit
-------------------
-  Sampling-Seed: 42 (in Original- und Runner-Modul identisch).
-  Globales Sample: 500 zufällig gezogene Dokumente mit Refs.
-  max_pairs: 200 (Original-Default beibehalten).
-
-Aufruf
-------
-  python step02b_run_with_kati.py --phase 1
-  python step02b_run_with_kati.py --phase 2
-
-Literatur
----------
-  Xie, Q., & Waltman, L. (2025). A comparison of citation-based clustering
-    and topic modeling for science mapping. Scientometrics, 130(5),
-    2497-2522.
-
-Autor: Ben Borowski
-"""
 
 import argparse
 from pathlib import Path
@@ -73,15 +6,10 @@ from typing import Dict, Set, Tuple
 import numpy as np
 import pandas as pd
 
-# Methodische Kernfunktionen aus dem Originalmodul — unveraendert
-from step02b_reference_overlap import jaccard, mean_pairwise_jaccard  # noqa: F401
+from step02b_reference_overlap import jaccard, mean_pairwise_jaccard
 
 
-# =============================================================================
-# KONFIGURATION
-# =============================================================================
 
-# Skript-Verzeichnis als Anker; macht die Defaults unabhaengig vom CWD.
 _HERE = Path(__file__).resolve().parent
 
 DEFAULT_PATHS: Dict[int, Dict[str, Path]] = {
@@ -106,23 +34,14 @@ MAX_PAIRS = 200
 SEED = 42
 
 
-# =============================================================================
-# DATEN-LOADER
-# =============================================================================
 
 def _normalize_uid(s):
-    """Trimmt Whitespace und doppelte Quotes aus exportierten UIDs."""
     if isinstance(s, str):
         return s.strip().strip('"').strip()
     return s
 
 
 def load_kati_refs(path: Path) -> Dict[str, Set[str]]:
-    """
-    Laedt die KATI-Edge-Liste und aggregiert sie zu einem Dict
-    UID -> Set[UID_ref]. Robust gegen umschliessende Quotes und
-    Whitespace in Header und Werten.
-    """
     df = pd.read_csv(path, skipinitialspace=True, dtype=str)
     df.columns = [c.strip().strip('"') for c in df.columns]
     if "UID" not in df.columns or "UID_ref" not in df.columns:
@@ -136,10 +55,6 @@ def load_kati_refs(path: Path) -> Dict[str, Set[str]]:
 
 
 def load_topics(path: Path) -> pd.DataFrame:
-    """
-    Laedt die Topic-Zuweisungen pro Dokument. Erwartete Spalten:
-    UID, topic. Andere Spalten werden ignoriert.
-    """
     df = pd.read_csv(path, low_memory=False)
     if "UID" not in df.columns or "topic" not in df.columns:
         raise ValueError(
@@ -150,9 +65,6 @@ def load_topics(path: Path) -> pd.DataFrame:
     return df[["UID", "topic"]].copy()
 
 
-# =============================================================================
-# KERN-RUNNER
-# =============================================================================
 
 def run_phase(phase: int,
               kati_path: Path,
@@ -161,11 +73,6 @@ def run_phase(phase: int,
               max_pairs: int = MAX_PAIRS,
               global_sample_size: int = GLOBAL_SAMPLE_SIZE,
               seed: int = SEED) -> Tuple[pd.DataFrame, float]:
-    """
-    Berechnet RO_topic pro Topic und RO_global fuer eine Phase.
-    Nutzt mean_pairwise_jaccard aus dem Originalmodul, damit die
-    methodische Logik nicht dupliziert wird.
-    """
     print(f"[step2b-kati] Phase {phase}: lade KATI-Refs ...")
     refs_by_uid = load_kati_refs(kati_path)
     print(f"             {len(refs_by_uid):,} UIDs mit Ref-Sets")
@@ -175,7 +82,6 @@ def run_phase(phase: int,
     print(f"             {len(topics):,} Dokumente, "
           f"{topics['topic'].nunique()} Topic-IDs")
 
-    # Ref-Set pro Dokument anhaengen
     topics["ref_set"] = (
         topics["UID"]
         .map(refs_by_uid)
@@ -185,7 +91,6 @@ def run_phase(phase: int,
     coverage_total = topics["has_refs"].mean()
     print(f"             Coverage (Docs mit Refs): {coverage_total:.1%}")
 
-    # Globales Baseline-Sample (n=500 Zufallsdokumente mit Refs)
     rng = np.random.RandomState(seed)
     valid_idx = topics.index[topics["has_refs"]].tolist()
     sample_size = min(global_sample_size, len(valid_idx))
@@ -195,7 +100,6 @@ def run_phase(phase: int,
                                       max_pairs=max_pairs, seed=seed)
     print(f"[step2b-kati] RO_global (n={sample_size}) = {ro_global:.5f}")
 
-    # Pro Topic: RO_topic + Diagnosen
     rows = []
     topic_ids = sorted([t for t in topics["topic"].unique() if t >= 0])
     for tid in topic_ids:
@@ -232,9 +136,6 @@ def run_phase(phase: int,
     return result, ro_global
 
 
-# =============================================================================
-# CLI
-# =============================================================================
 
 def main():
     parser = argparse.ArgumentParser(

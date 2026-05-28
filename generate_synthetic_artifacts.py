@@ -1,28 +1,3 @@
-"""
-SYNTHETIC ARTIFACT GENERATOR (Smoke-Test ONLY)
-==============================================
-
-Erzeugt randomisierte step1/step2-Artefakte (df, labels, embeddings,
-indicator_df) zur Validierung der Pipeline-Mechanik des
-BERTopic-Hyperparameter-Sensitivitäts-Batch-Runners.
-
-WICHTIGER HINWEIS
------------------
-Die hier erzeugten Daten sind PSEUDO-zufaellig (geclusterte Gauss-
-Embeddings + synthetische Bibliometriefelder). Sie reproduzieren keine
-realen Wissenschaftsdynamiken; alle daraus berechneten Indikator- und
-Spearman-rho-Werte dienen NUR der Pipeline-Validierung (Datentypen,
-Spaltennamen, Tabellenstruktur, Konvergenzverhalten von UMAP+HDBSCAN).
-Sie duerfen NICHT als Ergebnisse in die Masterarbeit uebernommen werden.
-
-Verwendung
-----------
-  $ python generate_synthetic_artifacts.py
-  $ python generate_synthetic_artifacts.py --n-docs 600 --n-clusters 12 \\
-      --output-dir output_smoke
-
-Autor: Ben Borowski
-"""
 
 import argparse
 import pickle
@@ -33,19 +8,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# -----------------------------------------------------------------------------
-# Stub fuer sentence_transformers: step01_topic_modeling importiert es
-# beim Modul-Top-Level, wir bauen Embeddings aber ohne. Der Stub umgeht das,
-# damit der Smoke-Test ohne ~600 MB PyTorch-Stack auskommt.
-# -----------------------------------------------------------------------------
 if "sentence_transformers" not in sys.modules:
     _st_stub = types.ModuleType("sentence_transformers")
-    _st_stub.SentenceTransformer = lambda *a, **k: None  # type: ignore
+    _st_stub.SentenceTransformer = lambda *a, **k: None
     sys.modules["sentence_transformers"] = _st_stub
 
-# -----------------------------------------------------------------------------
-# 1. Synthetisches DataFrame (alle WoS-konformen Spalten)
-# -----------------------------------------------------------------------------
 
 _WORDPOOL = [
     "quantum", "neural", "graph", "energy", "polymer", "catalysis",
@@ -69,7 +36,6 @@ _WOS_CATS = [f"Synth Cat {i:02d}" for i in range(40)]
 
 
 def _make_text(rng: np.random.Generator, cluster_id: int) -> str:
-    """Pseudo-Abstract aus topic-spezifischem Wort-Pool."""
     base = rng.choice(_WORDPOOL, size=4, replace=False)
     extra = rng.choice(_WORDPOOL, size=8)
     seed_words = [f"cluster{cluster_id}_word{i}" for i in range(3)]
@@ -79,7 +45,6 @@ def _make_text(rng: np.random.Generator, cluster_id: int) -> str:
 
 
 def _make_keywords(rng: np.random.Generator, cluster_id: int) -> str:
-    """Topic-spezifische Author-Keywords."""
     n = rng.integers(3, 7)
     base = list(rng.choice(_WORDPOOL, size=n, replace=False))
     base.append(f"topic_{cluster_id}_kw")
@@ -114,7 +79,6 @@ def _make_orcids(rng: np.random.Generator) -> str:
 
 def build_df(n_docs: int, n_clusters: int, year_min: int,
              year_max: int, rng: np.random.Generator) -> pd.DataFrame:
-    """Vollstaendiges WoS-konformes Synthetik-DataFrame."""
     docs_per_cluster = n_docs // n_clusters
     cluster_assign = np.repeat(np.arange(n_clusters), docs_per_cluster)
     if len(cluster_assign) < n_docs:
@@ -123,7 +87,6 @@ def build_df(n_docs: int, n_clusters: int, year_min: int,
             [cluster_assign, rng.integers(0, n_clusters, rest)])
     rng.shuffle(cluster_assign)
 
-    # Jahresgewichtung: bias to recent years (realistischer fuer TEM)
     years = rng.choice(
         np.arange(year_min, year_max + 1),
         size=n_docs,
@@ -156,50 +119,30 @@ def build_df(n_docs: int, n_clusters: int, year_min: int,
 
     df = pd.DataFrame(rows)
 
-    # text + text_clean (von step01.load_and_clean konsumiert)
     df["text"] = df["Title"].fillna("") + ". " + df["Abstract"].fillna("")
     df["text_clean"] = df["text"].str.lower().str.replace(
         r"[^a-z0-9\s\-]", " ", regex=True).str.replace(r"\s+", " ", regex=True
     ).str.strip()
 
-    # Internes Hilfsfeld fuer den Embedding-Generator
     df["_synthetic_cluster"] = cluster_assign
     return df
 
 
 def _year_weights(year_min: int, year_max: int) -> np.ndarray:
-    """Linearer Aufwaertstrend: jueengere Jahre 2x so wahrscheinlich wie
-    aelteste Jahre. Stabilisiert TEM-Wachstumsraten."""
     n = year_max - year_min + 1
     w = np.linspace(1.0, 2.0, n)
     return w / w.sum()
 
 
-# -----------------------------------------------------------------------------
-# 2. Geclusterte SBERT-aequivalente Embeddings (384-D)
-# -----------------------------------------------------------------------------
 
 def build_embeddings(df: pd.DataFrame, dim: int,
                        rng: np.random.Generator,
                        noise_scale: float = 0.08) -> np.ndarray:
-    """
-    Geclusterte SBERT-aequivalente Embeddings mit L2-Normierung.
-
-    In hohen Dimensionen (384) liegen zufaellige Centroide auf der
-    Einheitssphaere fast aequidistant — UMAP kann sie kaum trennen.
-    Wir konstruieren deshalb maximal-orthogonale Centroide via
-    one-hot-aehnliche Basisvektoren (im Spann der ersten n_clusters
-    Achsen), bevor sie auf die Einheitssphaere projiziert werden.
-    Die Streuung pro Cluster wird ueber `noise_scale` (klein) gesteuert,
-    sodass HDBSCAN dichte, separierte Cluster findet.
-    """
     n_clusters = int(df["_synthetic_cluster"].max() + 1)
 
-    # Maximal-orthogonale Centroide: Basisvektoren mit kleinem Hintergrund
     centroids = np.zeros((n_clusters, dim), dtype=np.float32)
     for c in range(n_clusters):
         centroids[c, c] = 1.0
-        # Schwacher Hintergrund-Noise, damit Centroide nicht exakt orthogonal
         centroids[c] += rng.normal(0, 0.02, size=dim)
     centroids /= np.linalg.norm(centroids, axis=1, keepdims=True) + 1e-9
 
@@ -209,12 +152,8 @@ def build_embeddings(df: pd.DataFrame, dim: int,
     return emb.astype(np.float32)
 
 
-# -----------------------------------------------------------------------------
-# 3. Baseline UMAP + HDBSCAN + Indikatoren (echte step01/02-Logik)
-# -----------------------------------------------------------------------------
 
 def build_baseline(df: pd.DataFrame, emb: np.ndarray) -> tuple:
-    """Realer step01-Lauf (UMAP+HDBSCAN) auf den Synthetik-Embeddings."""
     import umap
     import hdbscan
     from config import (UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS,
@@ -244,7 +183,6 @@ def build_baseline(df: pd.DataFrame, emb: np.ndarray) -> tuple:
 
 def build_indicators(df: pd.DataFrame, labels: np.ndarray,
                        emb: np.ndarray, reduced: np.ndarray) -> tuple:
-    """Realer step02-Lauf: alle 17 Indikatoren auf Synthetik-Daten."""
     from step01_topic_modeling import compute_tem_metrics
     from step02_indicators import compute_all_indicators
     print("  TEM-Metriken (proportions + tem) ...", flush=True)
@@ -258,9 +196,6 @@ def build_indicators(df: pd.DataFrame, labels: np.ndarray,
     return ind_df, proportions, tem_df
 
 
-# -----------------------------------------------------------------------------
-# 4. Persistenz
-# -----------------------------------------------------------------------------
 
 def save_artifacts(output_dir: Path, df: pd.DataFrame, labels: np.ndarray,
                      emb: np.ndarray, reduced: np.ndarray,
@@ -278,9 +213,6 @@ def save_artifacts(output_dir: Path, df: pd.DataFrame, labels: np.ndarray,
     print(f"\n  Artefakte gespeichert: {output_dir}/", flush=True)
 
 
-# -----------------------------------------------------------------------------
-# CLI
-# -----------------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser(

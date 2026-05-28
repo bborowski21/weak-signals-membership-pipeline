@@ -1,22 +1,3 @@
-"""
-Ein-Befehl-Wrapper: EFA/PCA (Schritt 3) für eine spezifische Phase
-===================================================================
-
-Aufruf:
-    python run_phase_efa.py 1     # Phase 1 (2000-2015)
-    python run_phase_efa.py 2     # Phase 2 (2016-2025)
-
-Voraussetzung:
-    output_phaseX/indicators_16.csv  (aus run_phase_indicators.py)
-
-Schreibt nach output_phaseX/:
-    scree_plot.png, loading_matrix.png, loading_matrix_4pc.png,
-    correlation_matrix.png, efa_summary.json, pca_loadings.csv
-
-Die Pipeline-Module (config.py, step03_efa_pca.py) bleiben unverändert.
-
-Autor: Ben Borowski (analog zu run_phase_indicators.py)
-"""
 
 from __future__ import annotations
 
@@ -90,12 +71,6 @@ def main() -> None:
 
     ensure_indicators_done(output_dir)
 
-    # --- Vorverarbeitung: NaN-Spalten ausschließen ---
-    # step03_efa_pca.py rechnet np.corrcoef über alle 16 Indikatoren und
-    # kollabiert auf NaN, sobald eine Spalte vollflächig NaN ist (DI1/DI2/DI3
-    # bei aktuellem Datenstand). Wir filtern hier vor und schreiben eine
-    # bereinigte indicators_16.csv für den step03-Lauf; das Original wird als
-    # indicators_16_full.csv gesichert und am Ende wiederhergestellt.
     ind_path = output_dir / "indicators_16.csv"
     ind_backup_path = output_dir / "indicators_16_full.csv"
 
@@ -124,9 +99,6 @@ def main() -> None:
 
         step03_efa_pca.run()
     finally:
-        # --- Original-CSV wiederherstellen, damit nachfolgende Schritte
-        #     (z. B. step03b, step04 Visualisierungen) wieder die volle
-        #     16-Spalten-Matrix sehen.
         if backup_created and ind_backup_path.exists():
             shutil.move(str(ind_backup_path), str(ind_path))
             print(f"\n  Vollmatrix in {ind_path.name} wiederhergestellt.")

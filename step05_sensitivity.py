@@ -1,84 +1,3 @@
-"""
-SCHRITT 5: Sensitivitätsanalyse des F3-Indikatorsystems (Pipeline V2)
-=====================================================================
-
-Zweck
------
-Die Ergebnisse der membership-basierten Klassifikation hängen von
-(i) Parametern der Indikatorberechnung (z. B. Bayes-Prior α für
-EP3), (ii) Clustering-Hyperparametern (HDBSCAN `min_cluster_size`),
-(iii) Membership-Hyperparametern (Sigmoid-k, WP-Gewicht λ) sowie
-(iv) der Wahl von Feld-Varianten (WoS Categories vs. Research Areas;
-Author Keywords vs. Keywords Plus) und (v) stochastischen Komponenten
-(UMAP-Seeds).
-
-Ziel dieses Moduls ist nicht eine Optimierung, sondern der Nachweis,
-dass die Kernaussagen der Arbeit (Membership-Struktur, Margin-Verteilung)
-robust unter realistischen Parametervariationen sind.
-
-V2-Spezifika
-------------
-Pipeline V2 ersetzt die kategoriale Klassifikation der V1 durch
-kontinuierliche Memberships m_ws, m_trend, m_ec, m_latent ∈ [0, 1].
-Stabilitätsmessungen erfolgen daher primär über Spearman-ρ der
-Membership-Vektoren (statt Kappa/ARI auf kategorialen Labels), weil
-ρ die Rangstruktur kontinuierlich abbildet und nicht-deterministische
-Übergänge ohne Diskretisierungsverlust abbildet.
-
-Sensitivitätstypen (V2)
------------------------
-1a. `membership_sensitivity_k_lambda` — 2D-Grid Sigmoid-k × WP-Gewicht λ.
-    Sensitivität der Membership-Vektoren gegen Aggregations-Parameter.
-1b. `parameter_sensitivity_alpha` — Bayes-Prior α (EP3) mit vollständigem
-    Re-Run; Spearman-ρ pro Membership-Spalte gegen Referenz α=5.
-1c. `bertopic_hyperparameter_sensitivity` — Grid über UMAP/HDBSCAN-
-    Hyperparameter mit vollständiger Re-Indikator-Berechnung.
-2.  `indicator_ablation` — Leave-one-out: für jeden der 16 Indikatoren
-    Membership-Vektoren neu berechnen; Spearman-ρ vs. Baseline.
-3.  `field_alternative_sensitivity` — WoS Categories vs. Research Areas
-    für EO2 und Author Keywords vs. Keywords Plus für WP3.
-4.  `random_seed_stability` — UMAP mit mehreren Seeds; ARI/V-Measure
-    der Topic-Zuordnung (Clustering-Ebene, vor Memberships).
-5.  `phase_alternative` — Alternative Phasenwahl ±1 Jahr und
-    Doubling-Time-informiert (Scheidsteger 2021).
-6.  `indexing_latency_variant` — Exklusion der letzten Monate für DI4, WP2.
-7.  `hybrid_alpha_sensitivity_cross_phase` — Cross-Phase-α_H-Grid.
-
-Stabilitätsmetriken (V2)
-------------------------
-  Spearman-ρ            Rangbasierter Stabilitätsindikator für die vier
-                        Membership-Spalten. ρ > 0.9 → robust, ρ < 0.7 →
-                        explizite Reflexion in der Diskussion.
-  Margin-Verschiebung   Veränderung der Margin-Verteilung (ΔMedian,
-                        Δ|Margin<0.10|-Anteil); Indikator für
-                        Übergangs-Stabilität.
-  ARI / V-Measure       Nur für Clustering-Ebene (Seed-Stabilität).
-
-Literatur
----------
-  Saltelli, A. et al. (2008). Global Sensitivity Analysis: The Primer.
-    Wiley.  [OAT / Morris / Sobol Rahmen]
-  Hubert, L. & Arabie, P. (1985). Comparing partitions.
-    Journal of Classification 2(1), 193–218.
-  Rosenberg, A. & Hirschberg, J. (2007). V-Measure: A conditional
-    entropy-based external cluster evaluation measure. EMNLP-CoNLL.
-  Scheidsteger, T. et al. (2021). Bibliometric Analysis in the Field
-    of Quantum Technology. Quantum Reports 3(3), 549–575.
-
-Output
-------
-  sensitivity_membership_kl.csv     2D-Grid (k, λ): Spearman pro Membership
-  sensitivity_parameter_alpha.csv   α-Variation (EP3)
-  sensitivity_parameter_hparam.csv  BERTopic-Hyperparameter
-  sensitivity_ablation.csv          Leave-one-out
-  sensitivity_fields.csv            Feld-Alternativen
-  sensitivity_seeds.csv             Seed-Stabilität (ARI/V-Measure)
-  sensitivity_phase.csv             Alternative Phasenwahl
-  sensitivity_latency.csv           Indexierungslatenz
-  sensitivity_report.md             Konsolidierter Markdown-Bericht
-
-Autor: Ben Borowski
-"""
 
 import pandas as pd
 import numpy as np
@@ -129,20 +48,12 @@ except ImportError:
     REVIEW_ABSENCE_ALPHA = 5
 
 
-# =============================================================================
-# HILFSFUNKTIONEN — V2: arbeiten direkt auf Membership-Vektoren
-# =============================================================================
 
 MEMBERSHIP_COLS = ["m_ws", "m_trend", "m_ec", "m_latent"]
 
 
 def _spearman_per_membership(base_memb: pd.DataFrame,
                               new_memb: pd.DataFrame) -> dict:
-    """Spearman-ρ pro Membership-Spalte über die gemeinsamen Topics.
-
-    Returns dict mit Schlüsseln rho_m_ws, rho_m_trend, rho_m_ec, rho_m_latent,
-    rho_mean (Mittelwert über die vier Spalten) und rho_min (Worst-Case).
-    """
     common = base_memb.index.intersection(new_memb.index)
     if len(common) < 3:
         nan_dict = {f"rho_{c}": np.nan for c in MEMBERSHIP_COLS}
@@ -166,11 +77,6 @@ def _spearman_per_membership(base_memb: pd.DataFrame,
 
 def _margin_shift(base_memb: pd.DataFrame,
                     new_memb: pd.DataFrame) -> dict:
-    """Verschiebung der Margin-Verteilung als Übergangs-Stabilitätsmaß.
-
-    Returns delta_median_margin, delta_share_unklar (Anteil margin<0.10),
-    spearman_margin (Rangerhalt der Übergangsordnung).
-    """
     common = base_memb.index.intersection(new_memb.index)
     if len(common) < 3 or "margin" not in base_memb.columns \
             or "margin" not in new_memb.columns:
@@ -190,7 +96,6 @@ def _margin_shift(base_memb: pd.DataFrame,
 
 
 def _jaccard_sets(a: set, b: set) -> float:
-    """Jaccard-Überlappung zweier Mengen; 1.0 bei beidseits leer."""
     if not a and not b:
         return 1.0
     union = a | b
@@ -202,11 +107,6 @@ def _compute_memberships_from_dims(
         indicator_df: pd.DataFrame,
         k: float = MEMBERSHIP_SIGMOID_K,
         lambda_wp: float = MEMBERSHIP_LAMBDA_WP) -> pd.DataFrame:
-    """Wrapper um step02b.compute_memberships für Sensitivitäts-Reruns.
-
-    Erzeugt einen vollständigen Membership-DataFrame (m_ws, m_trend, m_ec,
-    m_latent, margin) mit identischem Indikator-Index. Vermeidet I/O.
-    """
     from step02b_memberships import compute_memberships
     return compute_memberships(
         indicator_df=indicator_df,
@@ -218,7 +118,6 @@ def _compute_memberships_from_dims(
 
 def _aggregate_dimensions(indicator_df: pd.DataFrame,
                            dimensions: dict = None) -> pd.DataFrame:
-    """Z-Standardisierung + Mittelwert pro Dimension (wie step02)."""
     from sklearn.preprocessing import StandardScaler
     dims = dimensions or INDICATOR_DIMENSIONS
     scaler = StandardScaler()
@@ -231,9 +130,6 @@ def _aggregate_dimensions(indicator_df: pd.DataFrame,
     return out
 
 
-# =============================================================================
-# 1a. MEMBERSHIP-SENSITIVITÄT — 2D-Grid (Sigmoid-k × WP-Gewicht λ)
-# =============================================================================
 
 def membership_sensitivity_k_lambda(
         baseline_memberships: pd.DataFrame,
@@ -241,17 +137,6 @@ def membership_sensitivity_k_lambda(
         dim_scores: pd.DataFrame,
         k_grid=SENSITIVITY_SIGMOID_K_GRID,
         lambda_grid=SENSITIVITY_LAMBDA_GRID) -> pd.DataFrame:
-    """
-    Zweidimensionales Grid der Membership-Hyperparameter (k × λ).
-
-    k ∈ {0.5, 1.0, 2.0}     — Sigmoid-Skalenparameter (Trennschärfe).
-    λ ∈ {0.3, 0.5, 0.7}     — WP-Gewicht im Trend-Score.
-
-    Stabilitätsmaße pro Gridzelle: Spearman-ρ pro Membership-Spalte
-    sowie Margin-Verschiebung gegen Referenzlauf (k=1.0, λ=0.5).
-    ρ_mean > 0.9 → robust; ρ_min < 0.7 → kritische Membership identifiziert
-    und explizite Reflexion erforderlich.
-    """
     records = []
     for k in k_grid:
         for lam in lambda_grid:
@@ -270,9 +155,6 @@ def membership_sensitivity_k_lambda(
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 1b. PARAMETER-SENSITIVITÄT — BAYES-PRIOR α (EP3, vollständiger Re-Run)
-# =============================================================================
 
 def parameter_sensitivity_alpha(
         baseline_memberships: pd.DataFrame,
@@ -280,15 +162,6 @@ def parameter_sensitivity_alpha(
         df: pd.DataFrame,
         labels: np.ndarray,
         alpha_grid=SENSITIVITY_ALPHA_GRID) -> pd.DataFrame:
-    """
-    α-Sensitivität (EP3) mit vollständigem Re-Run von compute_review_absence,
-    Re-Aggregation und Re-Membership.
-
-    Für jedes α ∈ alpha_grid wird EP3 neu berechnet, die Indikator-Matrix
-    aktualisiert, die Dimensions-Aggregation und Memberships neu gerechnet.
-    Stabilität via Spearman-ρ pro Membership-Spalte plus Spearman-ρ der
-    EP3-Werte selbst (Plausibilisierung des Re-Runs).
-    """
     from step02_indicators import compute_review_absence
 
     records = []
@@ -322,18 +195,9 @@ def parameter_sensitivity_alpha(
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 1c. EINHEITENBILDUNG — BERTopic-Hyperparameter-Grid
-# =============================================================================
 
 def _match_topics_by_overlap(baseline_labels: np.ndarray,
                               new_labels: np.ndarray) -> dict:
-    """Ordnet jedes neue Topic dem Baseline-Topic mit maximaler
-    Dokument-Überlappung zu (Jaccard, Greedy-Argmax).
-
-    Returns dict[int, int]  new_tid → baseline_tid (bestes Match,
-    Jaccard ≥ 0.05). Topics ohne sinnvolles Match werden ausgelassen.
-    """
     base_tids = sorted(set(baseline_labels[baseline_labels >= 0]))
     new_tids = sorted(set(new_labels[new_labels >= 0]))
     mapping = {}
@@ -357,7 +221,6 @@ def _rebuild_indicators(df: pd.DataFrame,
                          new_labels: np.ndarray,
                          embeddings_sbert: np.ndarray,
                          embeddings_reduced: np.ndarray) -> pd.DataFrame:
-    """Komplettlauf von Schritt 2 mit neuen Topic-Labels."""
     from step01_topic_modeling import compute_tem_metrics
     from step02_indicators import compute_all_indicators
 
@@ -374,11 +237,6 @@ def _rebuild_indicators(df: pd.DataFrame,
 def _spearman_membership_aligned(baseline_memberships: pd.DataFrame,
                                    new_memberships: pd.DataFrame,
                                    mapping: dict) -> dict:
-    """Membership-Spearman über gematchte Topic-Paare (Cross-Cluster).
-
-    Wenn die Topic-IDs durch Re-Clustering nicht direkt vergleichbar sind,
-    erfolgt der Vergleich über das Topic-Mapping new_tid → baseline_tid.
-    """
     pairs_base, pairs_new = [], []
     for nt, bt in mapping.items():
         if bt not in baseline_memberships.index or nt not in new_memberships.index:
@@ -416,22 +274,6 @@ def bertopic_hyperparameter_sensitivity(
         min_samples_grid=SENSITIVITY_MIN_SAMPLES_GRID,
         min_topic_size_grid=SENSITIVITY_MIN_TOPIC_SIZE_GRID,
         n_neighbors_grid=SENSITIVITY_N_NEIGHBORS_GRID) -> pd.DataFrame:
-    """
-    OAT-Sensitivität über die vier BERTopic-Hauptparameter mit
-    vollständiger Re-Indikator- und Re-Membership-Berechnung pro
-    Gridzelle.
-
-    Vorgehen pro Zelle:
-      1) UMAP + HDBSCAN mit neuen Hyperparametern → neue Topiclabels.
-         (Für min_topic_size: Post-hoc-Filter auf den Baseline-Labels.)
-      2) Topic-Alignment: jedes neue Topic wird über Jaccard-Überlappung
-         dem Baseline-Topic mit dem höchsten Überlapp zugeordnet.
-      3) Vollständige Indikator-Neuberechnung + Re-Memberships.
-      4) Spearman-ρ pro Membership-Spalte über die gematchten Topic-Paare.
-
-    Konvention: ρ_mean > 0.9 → robust; ρ_mean < 0.7 → explizite Reflexion.
-    Rechenaufwand: ca. 8–12 min pro Gridzelle (n ≈ 44 k Dokumente).
-    """
     import umap
     import hdbscan
     from config import (UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS, UMAP_MIN_DIST,
@@ -441,7 +283,6 @@ def bertopic_hyperparameter_sensitivity(
 
     def _rerun_units(min_cluster: int, n_neigh: int,
                       min_samples: int = HDBSCAN_MIN_SAMPLES) -> tuple:
-        """Wiederaufbau der Einheitenbildung; gibt (labels, reduced) zurück."""
         reducer = umap.UMAP(n_components=UMAP_N_COMPONENTS,
                              n_neighbors=n_neigh,
                              min_dist=UMAP_MIN_DIST,
@@ -454,7 +295,6 @@ def bertopic_hyperparameter_sensitivity(
 
     def _apply_min_topic_size_filter(labels: np.ndarray,
                                        min_size: int) -> np.ndarray:
-        """Post-hoc Topic-Merging: Topics mit n_docs < min_size → Noise."""
         filtered = labels.copy()
         tids, counts = np.unique(filtered[filtered >= 0], return_counts=True)
         to_drop = set(tids[counts < min_size].tolist())
@@ -462,7 +302,6 @@ def bertopic_hyperparameter_sensitivity(
         return filtered
 
     def _eval_cell(new_labels, reduced, param_name, value):
-        """Re-Indikatoren + Re-Memberships + Spearman-Vergleich gegen Baseline."""
         mapping = _match_topics_by_overlap(baseline_labels, new_labels)
         new_ind = _rebuild_indicators(df, new_labels,
                                         embeddings_sbert, reduced)
@@ -479,7 +318,6 @@ def bertopic_hyperparameter_sensitivity(
             **rhos,
         }
 
-    # (a) HDBSCAN min_cluster_size
     for mcs in min_cluster_grid:
         print(f"  [hparam] min_cluster_size={mcs} …", flush=True)
         new_labels, reduced = _rerun_units(min_cluster=mcs,
@@ -487,7 +325,6 @@ def bertopic_hyperparameter_sensitivity(
         records.append(_eval_cell(new_labels, reduced,
                                    "hdbscan_min_cluster_size", mcs))
 
-    # (b) BERTopic min_topic_size (post-hoc Filter auf Baseline-Labels)
     for mts in min_topic_size_grid:
         print(f"  [hparam] min_topic_size={mts} …", flush=True)
         new_labels = _apply_min_topic_size_filter(baseline_labels, mts)
@@ -499,7 +336,6 @@ def bertopic_hyperparameter_sensitivity(
         records.append(_eval_cell(new_labels, reduced,
                                    "bertopic_min_topic_size", mts))
 
-    # (c) UMAP n_neighbors
     for nn in n_neighbors_grid:
         print(f"  [hparam] n_neighbors={nn} …", flush=True)
         new_labels, reduced = _rerun_units(
@@ -507,7 +343,6 @@ def bertopic_hyperparameter_sensitivity(
         records.append(_eval_cell(new_labels, reduced,
                                    "umap_n_neighbors", nn))
 
-    # (d) HDBSCAN min_samples
     for ms in min_samples_grid:
         print(f"  [hparam] min_samples={ms} …", flush=True)
         new_labels, reduced = _rerun_units(
@@ -520,20 +355,9 @@ def bertopic_hyperparameter_sensitivity(
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 2. INDIKATOR-ABLATION (LEAVE-ONE-OUT) — V2: auf Memberships
-# =============================================================================
 
 def indicator_ablation(baseline_memberships: pd.DataFrame,
                         indicator_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Leave-one-out über alle 16 Indikatoren. Für jeden Indikator:
-    (1) Dimension-Score und Memberships ohne diesen Indikator berechnen,
-    (2) Spearman-ρ pro Membership-Spalte vs. Baseline-Memberships.
-
-    Identifiziert Indikatoren mit besonders hohem Einfluss auf die
-    Membership-Struktur (kleinster ρ_mean → größter Hebel).
-    """
     records = []
     for ind in indicator_df.columns:
         ind_df_reduced = indicator_df.drop(columns=[ind])
@@ -544,9 +368,6 @@ def indicator_ablation(baseline_memberships: pd.DataFrame,
                            "citation_momentum", "field_breadth"} else None
 
         if new_memb is None:
-            # EC-Subindikator entfernt → m_ec kann nicht berechnet werden;
-            # Fallback: alle vier Memberships dennoch berechnen mit
-            # leerem EC-Anteil-Vektor (Spearman markiert das automatisch).
             try:
                 new_memb = _compute_memberships_from_dims(
                     dim_scores=dims_reduced, indicator_df=indicator_df,
@@ -566,27 +387,15 @@ def indicator_ablation(baseline_memberships: pd.DataFrame,
     return pd.DataFrame(records).sort_values("rho_mean", ascending=True)
 
 
-# =============================================================================
-# 3. FELD-ALTERNATIVEN
-# =============================================================================
 
 def field_alternative_sensitivity(df: pd.DataFrame,
                                    labels: np.ndarray) -> pd.DataFrame:
-    """
-    WoS Categories vs. Research Areas für EO2 (disciplinary_entropy)
-    und Author Keywords vs. Keywords Plus für WP3 (field_breadth).
-
-    Spearman-ρ der Topic-Indikator-Vektoren zwischen Feld-Alternative A
-    und B. Hohe Korrelation → Feldwahl ist unkritisch; niedrige → Feldwahl
-    ist substantielle Designentscheidung.
-    """
     from step02_indicators import (compute_disciplinary_entropy,
                                     compute_field_breadth)
 
     topic_ids = sorted(set(labels[labels >= 0]))
     records = []
 
-    # EO2: WC vs. Research Areas
     if "Research Areas" in df.columns and "WoS Categories" in df.columns:
         df_wc = df.copy()
         df_ra = df.copy().rename(columns={"Research Areas": "WoS Categories",
@@ -600,7 +409,6 @@ def field_alternative_sensitivity(df: pd.DataFrame,
                         "field_B": "Research Areas",
                         "spearman_rho": rho, "p_value": pval})
 
-    # WP3: Keywords Plus vs. Author Keywords
     if "Author Keywords" in df.columns and "Keywords Plus" in df.columns:
         df_kw_plus = df.copy()
         df_kw_auth = df.copy().rename(
@@ -618,19 +426,10 @@ def field_alternative_sensitivity(df: pd.DataFrame,
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 4. SEED-STABILITÄT (UMAP-Stochastik) — Clustering-Ebene
-# =============================================================================
 
 def random_seed_stability(embeddings_sbert: np.ndarray,
                             baseline_labels: np.ndarray,
                             seeds=SENSITIVITY_SEEDS) -> pd.DataFrame:
-    """
-    UMAP + HDBSCAN mit mehreren Seeds; Messung der Stabilität
-    der Topic-Labels via ARI und V-Measure auf Clustering-Ebene.
-    Diese Sensitivität betrifft die Einheitenbildung VOR der
-    Membership-Berechnung; ARI/V-Measure sind hier die etablierte Wahl.
-    """
     import umap
     import hdbscan
     from config import (UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS, UMAP_MIN_DIST,
@@ -656,13 +455,9 @@ def random_seed_stability(embeddings_sbert: np.ndarray,
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 5. PHASEN-ALTERNATIVE (Doubling-Time-informiert nach Scheidsteger 2021)
-# =============================================================================
 
 def phase_alternative(df: pd.DataFrame,
                        split_years=SENSITIVITY_PHASE_SPLITS) -> pd.DataFrame:
-    """Phasen-Alternativen: Splitjahr-Variation und Doubling-Time-Referenz."""
     if "Year" not in df.columns:
         return pd.DataFrame([{"error": "No Year column"}])
 
@@ -682,15 +477,11 @@ def phase_alternative(df: pd.DataFrame,
     return pd.DataFrame(records)
 
 
-# =============================================================================
-# 6. INDEXIERUNGS-/REZEPTIONSLATENZ (WoS-Verzögerung)
-# =============================================================================
 
 def indexing_latency_variant(
         df: pd.DataFrame,
         labels: np.ndarray,
         cutoff_months: int = SENSITIVITY_INDEXING_CUTOFF_MONTHS) -> pd.DataFrame:
-    """Cutoff-Bericht für rezeptionsbasierte Indikatoren (DI4, WP2)."""
     if "Year" not in df.columns:
         return pd.DataFrame([{"error": "No Year column"}])
 
@@ -716,9 +507,6 @@ def indexing_latency_variant(
     }])
 
 
-# =============================================================================
-# 7. CROSS-PHASE HYBRID-α-SENSITIVITÄT (Topic-Matching, step01c)
-# =============================================================================
 
 def hybrid_alpha_sensitivity_cross_phase(
         phase1_dir: Path,
@@ -727,7 +515,6 @@ def hybrid_alpha_sensitivity_cross_phase(
         baseline_alpha: float = 0.6,
         topk: int = 15,
         use_sbert: bool = True) -> pd.DataFrame:
-    """Sensitivität des Cross-Phase-Hybrid-Gewichts α_H für das Topic-Matching."""
     from step01c_cross_phase_matching import (
         load_topic_keywords, compute_pairwise_scores, best_matches,
     )
@@ -802,7 +589,6 @@ def run_cross_phase_sensitivity(
         phase1_dir: Path,
         phase2_dir: Path,
         output_dir: Path) -> pd.DataFrame:
-    """Cross-Phase-spezifische Sensitivitätsanalysen (Hybrid-α)."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -816,12 +602,8 @@ def run_cross_phase_sensitivity(
     return df_alpha
 
 
-# =============================================================================
-# REPORT
-# =============================================================================
 
 def write_report(output_dir: Path, results: dict):
-    """Konsolidierter Markdown-Bericht (V2)."""
     md = ["# Sensitivitätsanalyse F3 — Konsolidierter Bericht (Pipeline V2)\n",
           f"Ausgabeordner: `{output_dir}`\n",
           "Stabilitätsmaß: Spearman-ρ pro Membership-Spalte (m_ws, m_trend, "
@@ -874,18 +656,8 @@ def write_report(output_dir: Path, results: dict):
     print(f"  [step05] Bericht gespeichert: {report_path}")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def run(output_dir: Path = None):
-    """
-    Erwartet im OUTPUT_DIR Artefakte aus step01/step02/step02b:
-      step1_artifacts.pkl       → df, labels, embeddings_sbert
-      indicators_16.csv         → indicator_df
-      dimension_scores.csv      → dim_scores
-      signal_memberships.csv    → baseline_memberships
-    """
     output_dir = Path(output_dir or OUTPUT_DIR)
 
     with open(output_dir / "step1_artifacts.pkl", "rb") as f:

@@ -1,31 +1,3 @@
-"""
-Standalone-Post-Processor: Text-Cleaning für vorbereitete Pipeline-CSVs
-========================================================================
-
-Liest die von prepare_kati_data.py erzeugten Pipeline-Eingabe-CSVs
-(wos_qc_phase1_2000_2015.csv, wos_qc_phase2_2016_2025.csv) und schreibt
-*neue* Cleaned-Versionen mit dem Suffix "_clean":
-    wos_qc_phase1_2000_2015_clean.csv
-    wos_qc_phase2_2016_2025_clean.csv
-
-Designentscheidung — separation of concerns:
-  prepare_kati_data.py : Field-Mapping (KATI-Schema → Pipeline-Schema)
-  clean_pipeline_data.py: Text-Normalisierung (LaTeX, HTML, Copyright, Unicode)
-
-Originaldateien werden NICHT überschrieben. Damit bleibt die Field-Mapping-
-Stufe vollständig nachvollziehbar und idempotent.
-
-Aufruf:
-    python clean_pipeline_data.py             # idempotent
-    python clean_pipeline_data.py --force     # neu erzeugen
-    python clean_pipeline_data.py --diagnose  # nur Artefakt-Statistik
-
-Schalter zum produktiven Einsatz:
-  Nach erfolgreichem Lauf in run_phase.py die PHASES-Datenpfade auf die
-  *_clean.csv-Versionen umstellen (1 Zeile pro Phase).
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -35,12 +7,9 @@ import pandas as pd
 
 from text_preprocessing import clean_text, diagnose_artifacts
 
-# =============================================================================
-# KONFIGURATION
-# =============================================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-PARENT_DIR = BASE_DIR.parent  # F3_Prototyp/
+PARENT_DIR = BASE_DIR.parent
 
 PHASES = [
     {
@@ -55,17 +24,11 @@ PHASES = [
     },
 ]
 
-# Spalten, die Text-Cleaning erhalten. Strikt auf semantischen Freitext
-# beschränkt — kategorische Felder (Document Type, Source title) bleiben unberührt.
 TEXT_COLUMNS = ["Title", "Abstract"]
 
 
-# =============================================================================
-# KERN-FUNKTIONEN
-# =============================================================================
 
 def diagnose_phase(src_path: Path, label: str) -> dict:
-    """Zählt Artefakte vor dem Cleaning. Reine Inspektion, kein Schreiben."""
     print(f"\n=== Diagnose: {label} ===")
     print(f"Quelle: {src_path.name}")
     df = pd.read_csv(src_path)
@@ -88,8 +51,6 @@ def diagnose_phase(src_path: Path, label: str) -> dict:
 
 
 def clean_phase(src_path: Path, dst_path: Path, label: str) -> dict:
-    """Wendet clean_text auf TEXT_COLUMNS an, schreibt *_clean.csv.
-    Liefert Diagnostik-Counts vor/nach für QC-Reporting."""
     print(f"\n=== Cleaning: {label} ===")
     print(f"Quelle:  {src_path.name}")
 
@@ -102,14 +63,11 @@ def clean_phase(src_path: Path, dst_path: Path, label: str) -> dict:
             print(f"  [warnung] Spalte fehlt, übersprungen: {col}")
             continue
         before = diagnose_artifacts(df[col].astype(str))
-        # NaN-sicher: clean_text behandelt None/NaN selbst zu ""
         df[col] = df[col].apply(clean_text)
         after = diagnose_artifacts(df[col].astype(str))
         counts_before[col] = before
         counts_after[col] = after
 
-        # Falls Cleaning Title oder Abstract leert: Record droppen
-        # (kein Embedding möglich)
         if col in ("Title", "Abstract"):
             n_pre_drop = len(df)
             df = df[df[col].astype(str).str.strip() != ""].copy()
@@ -121,7 +79,6 @@ def clean_phase(src_path: Path, dst_path: Path, label: str) -> dict:
     df.to_csv(dst_path, index=False)
     print(f"Ziel:    {dst_path.name}  ({len(df):,} Records, {n_in - len(df)} verloren)")
 
-    # Reduktionsstatistik
     print("Reduktion (Records mit Artefakt vor/nach Cleaning):")
     for col in counts_before:
         b, a = counts_before[col], counts_after[col]

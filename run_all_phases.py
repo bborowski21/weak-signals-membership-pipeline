@@ -1,38 +1,3 @@
-"""
-run_all_phases.py — Vollständige F3-Pipeline-Orchestrierung (V2)
-==============================================================================
-
-Führt die komplette F3-Pipeline V2 für Phase 1 (2000–2015) und Phase 2
-(2016–2025) sequentiell aus, indem die phasen-bewussten Wrapper-Scripts als
-Subprozesse gestartet werden. Ein einziger Aufruf, ein einziger Endpunkt.
-
-V2-Unterschied zur V1:
-  Step 2 berechnet jetzt zusätzlich kontinuierliche Memberships
-  (step02b_memberships) — das ist innerhalb von run_phase_indicators.py
-  integriert und benötigt keinen separaten Pipeline-Schritt im Orchestrator.
-
-Verwendung:
-    python run_all_phases.py                  # Alles ausführen (Default)
-    python run_all_phases.py --from-step 3.1  # Wiederaufnahme ab einem Step
-    python run_all_phases.py --only-phase 1   # Nur Phase 1
-    python run_all_phases.py --skip-cross     # Cross-Phase-Matching überspringen
-    python run_all_phases.py --dry-run        # Schritte nur anzeigen
-
-Pipeline-Reihenfolge (Step-IDs):
-    1.1, 1.2     Topic Modeling                 — run_phase.py
-    1c           Cross-Phase-Matching           — step01c_cross_phase_matching.py
-    2.1, 2.2     Indikatoren + Memberships (V2) — run_phase_indicators.py
-    3.1, 3.2     EFA/PCA                        — run_phase_efa.py
-    3b.1, 3b.2   Externe Validierung            — run_phase_validation.py
-    4.1, 4.2     Visualisierungen               — run_phase_viz.py
-    5a.1, 5a.2   Step5-Artefakt-Build           — build_step5_artifacts.py
-    5b.1, 5b.2   Sensitivitätsanalyse (V2)      — run_phase_sensitivity.py
-    5c           Cross-Phase-Sensitivität       — run_cross_phase_sensitivity.py
-
-Bei Fehler stoppt das Script und nennt die Step-ID für den Wiederaufnahme-Aufruf.
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -43,18 +8,14 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PYTHON = sys.executable  # nutzt das aktive (venv-)Python
+PYTHON = sys.executable
 
 PHASES = (1, 2)
 
 
-# =============================================================================
-# Pipeline-Definition
-# =============================================================================
 
 def build_steps(only_phase: int | None = None,
                 skip_cross: bool = False) -> list[tuple[str, str, list[str]]]:
-    """Erzeugt die geordnete Liste (step_id, label, cmd)."""
     steps: list[tuple[str, str, list[str]]] = []
 
     def add_phase_step(step_prefix: str, label_prefix: str, script: str) -> None:
@@ -67,10 +28,8 @@ def build_steps(only_phase: int | None = None,
                 [PYTHON, script, str(p)],
             ))
 
-    # Step 1: Topic Modeling
     add_phase_step("1", "Topic Modeling", "run_phase.py")
 
-    # Step 1c: Cross-Phase-Matching (nur einmal, wenn beide Phasen laufen)
     if not skip_cross and only_phase is None:
         steps.append((
             "1c",
@@ -78,25 +37,18 @@ def build_steps(only_phase: int | None = None,
             [PYTHON, "step01c_cross_phase_matching.py"],
         ))
 
-    # Step 2: Indikatoren + Memberships (V2 — step02 und step02b im Wrapper)
     add_phase_step("2", "Indikatoren + Memberships", "run_phase_indicators.py")
 
-    # Step 3: EFA/PCA
     add_phase_step("3", "EFA/PCA", "run_phase_efa.py")
 
-    # Step 3b: Externe Validierung (RTW/CTW + MTMM)
     add_phase_step("3b", "Externe Validierung", "run_phase_validation.py")
 
-    # Step 4: Visualisierungen
     add_phase_step("4", "Visualisierungen", "run_phase_viz.py")
 
-    # Step 5a: Artefakt-Build für Sensitivität
     add_phase_step("5a", "Step5-Artefakte", "build_step5_artifacts.py")
 
-    # Step 5b: Sensitivitätsanalyse
     add_phase_step("5b", "Sensitivitätsanalyse", "run_phase_sensitivity.py")
 
-    # Step 5c: Cross-Phase-Sensitivität (nur einmal, wenn beide Phasen laufen)
     if not skip_cross and only_phase is None:
         steps.append((
             "5c",
@@ -107,9 +59,6 @@ def build_steps(only_phase: int | None = None,
     return steps
 
 
-# =============================================================================
-# Ausführung
-# =============================================================================
 
 def fmt_duration(seconds: float) -> str:
     if seconds < 60:
@@ -186,7 +135,6 @@ def main() -> None:
             sys.exit(2)
         steps = steps[ids.index(args.from_step):]
 
-    # Vorab-Übersicht
     print()
     print("#" * 78)
     print(f"  F3-PIPELINE-ORCHESTRIERUNG  —  {len(steps)} Schritte")
@@ -198,7 +146,6 @@ def main() -> None:
     for sid, lbl, cmd in steps:
         print(f"    {sid:6}  {lbl:40}  {' '.join(cmd[1:])}")
 
-    # Ausführung
     t_total = time.time()
     for sid, lbl, cmd in steps:
         run_step(sid, lbl, cmd, dry_run=args.dry_run)

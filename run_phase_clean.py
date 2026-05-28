@@ -1,36 +1,3 @@
-"""
-Ein-Befehl-Wrapper (Cleaned-Variant): Vollständige Phase mit Text-Cleaning
-===========================================================================
-
-Aufruf:
-    python run_phase_clean.py 1     # Phase 1 (2000-2015)
-    python run_phase_clean.py 2     # Phase 2 (2016-2025)
-
-Vier-Stufen-Kette pro Aufruf — jede Stufe ist idempotent (überspringt sich
-selbst, wenn ihr Output bereits existiert):
-
-  Stufe 1 — Field-Mapping:
-      KATI-CSV → wos_qc_phaseN_….csv          (prepare_kati_data.main)
-  Stufe 2 — Text-Cleaning:
-      wos_qc_phaseN_….csv → wos_qc_phaseN_…_clean.csv
-      (clean_pipeline_data.main; entfernt LaTeX, HTML, Copyright, etc.)
-  Stufe 3 — Topic Modeling:
-      _clean.csv → output_phaseN/                (step01_topic_modeling.run)
-  Stufe 4 — TEM-Robustheit:
-      output_phaseN/topic_assignments.csv → output_phaseN/tem_robust/
-      (step01d_tem_robustness via subprocess, --auto-trim)
-
-Outputs gehen in output_phaseN/ (gleicher Name wie beim un-cleaned-Run).
-Wer die unbereinigten Baseline-Outputs als Vorher-Vergleich behalten will,
-sollte VOR dem Lauf:
-    mv output_phase1 output_phase1_raw
-    mv output_phase2 output_phase2_raw
-
-Pipeline-Module (config.py, step01_topic_modeling.py) bleiben unverändert —
-DATA_PATH und OUTPUT_DIR werden zur Laufzeit gepatcht.
-
-Autor: Ben Borowski
-"""
 
 from __future__ import annotations
 
@@ -38,12 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-# =============================================================================
-# KONFIGURATION
-# =============================================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-PARENT_DIR = BASE_DIR.parent  # F3_Prototyp/
+PARENT_DIR = BASE_DIR.parent
 
 PHASES = {
     "1": {
@@ -65,12 +29,8 @@ PHASES = {
 }
 
 
-# =============================================================================
-# CLI-PARSING
-# =============================================================================
 
 def parse_phase_arg() -> str:
-    """Tolerant: '1', '2', 'phase1', 'phase2', 'p1', 'P2' werden akzeptiert."""
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
@@ -86,9 +46,6 @@ def parse_phase_arg() -> str:
     return raw
 
 
-# =============================================================================
-# STUFEN
-# =============================================================================
 
 def stage1_prepare(raw_path: Path, label: str) -> None:
     if raw_path.exists():
@@ -120,7 +77,6 @@ def stage3_topic_modeling(
         print(f"   ⚠  Output-Verzeichnis enthält bereits Dateien: {output_dir}")
         print(f"   → Bestehende Dateien werden überschrieben.")
 
-    # Config zur Laufzeit umschalten — keine Modifikation der Pipeline-Module
     import config
     config.DATA_PATH = clean_path
     config.OUTPUT_DIR = output_dir
@@ -152,9 +108,6 @@ def stage4_tem_robustness(phase_key: str, label: str) -> None:
               f"{phase_key} --auto-trim)")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
 
 def main() -> None:
     phase_key = parse_phase_arg()

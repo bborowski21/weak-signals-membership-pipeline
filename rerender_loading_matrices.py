@@ -1,13 +1,3 @@
-"""
-Re-Render der Loading-Matrices (5PC und 4PC) fuer beide Phasen.
-
-Nutzt die bereits berechneten pca_loadings.csv-Dateien und ruft
-step03_efa_pca.plot_loading_matrix auf — mit aktualisierter
-Dimensions-Kuerzel-+Farb-Annotation.
-
-Aufruf:
-    python rerender_loading_matrices.py
-"""
 
 from __future__ import annotations
 from pathlib import Path
@@ -32,11 +22,9 @@ def rerender(label: str, output_dir: Path) -> None:
     loadings = pd.read_csv(loadings_path, index_col=0)
     valid_indicators = loadings.index.tolist()
 
-    # 5-PC-Version
     out_5 = output_dir / "loading_matrix.png"
     s3.plot_loading_matrix(loadings, valid_indicators, str(out_5))
 
-    # 4-PC-Version (auf PC1..PC4 zuschneiden)
     pc_cols = [c for c in loadings.columns if c.startswith("PC")]
     if len(pc_cols) >= 4:
         loadings_4 = loadings[pc_cols[:4]]
