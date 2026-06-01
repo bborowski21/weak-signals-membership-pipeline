@@ -112,10 +112,10 @@ python -m spacy download en_core_web_sm
 ## Daten
 
 Die F3-Pipeline operiert auf einem Web-of-Science-Korpus, der über
-das KATI-System (FKIE) zusammengestellt wurde. Aus lizenz- und
-embargobedingten Gründen ist der Korpus nicht Teil des Repositories.
+das KATI-System (FKIE) zusammengestellt wurde. Aus lizenzbedingten
+Gründen ist der Korpus nicht Teil des Repositories.
 Die Pipeline ist jedoch reproduzierbar auf jeder WoS-Lieferung, die
-die 17 in der Methoden-Sektion 3.1.2 dokumentierten Felder umfasst.
+die 17 in der Methoden-Sektion 3.1.1 dokumentierten Felder umfasst.
 
 ### Indikator-Datenstatus (Mai-2026-Lieferung)
 
@@ -199,9 +199,9 @@ Tabelle 3.6 der Masterarbeit.
 ## Versionierung
 
 Die in der Masterarbeit referenzierte Version ist über das Git-Tag
-`v1.0-thesis` fixiert und besitzt eine eigene Zenodo-DOI. Spätere
-Weiterentwicklungen erscheinen unter weiteren Tags (`v1.1`, `v2.0`),
-ohne den Thesis-Stand zu modifizieren.
+`v1.1` fixiert und besitzt eine eigene Zenodo-DOI. Spätere
+Weiterentwicklungen erscheinen unter weiteren Tags (`v1.2`, `v2.0`),
+ohne den zitierten Stand zu modifizieren.
 
 ## Lizenz
 
