@@ -16,7 +16,7 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals* (Version v1.1) [Software]. Zenodo.
+> von Weak Signals* (Version v1.2) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 
 BibTeX:
@@ -25,7 +25,7 @@ BibTeX:
 @software{borowski_pipeline_2026,
   author    = {Borowski, Ben-Nicholas},
   title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
-  version   = {v1.1},
+  version   = {v1.2},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
@@ -199,9 +199,10 @@ Tabelle 3.6 der Masterarbeit.
 ## Versionierung
 
 Die in der Masterarbeit referenzierte Version ist über das Git-Tag
-`v1.1` fixiert und besitzt eine eigene Zenodo-DOI. Spätere
-Weiterentwicklungen erscheinen unter weiteren Tags (`v1.2`, `v2.0`),
-ohne den zitierten Stand zu modifizieren.
+`v1.2` fixiert und besitzt eine eigene Zenodo-DOI. v1.2 erweitert
+v1.1 um das Topic-Modell-Güte-Modul (`step03c_topic_quality.py`).
+Spätere Weiterentwicklungen erscheinen unter weiteren Tags
+(`v1.3`, `v2.0`), ohne den zitierten Stand zu modifizieren.
 
 ## Lizenz
 

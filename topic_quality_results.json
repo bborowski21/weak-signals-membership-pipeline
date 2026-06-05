@@ -1,0 +1,74 @@
+{
+  "phase1": {
+    "phase": "phase1",
+    "n_documents": 20706,
+    "n_topics": 146,
+    "n_outlier_docs": 7246,
+    "outlier_share": 0.3499468753018449,
+    "topic_size_min": 25,
+    "topic_size_max": 518,
+    "topic_size_median": 60.5,
+    "topic_diversity_top100": 0.283013698630137,
+    "top_n_coherence": 10,
+    "top_n_diversity": 100,
+    "coherence": {
+      "c_v": {
+        "mean": 0.6810986953420403,
+        "std": 0.12496889316737608,
+        "median": 0.6866384451070346,
+        "n_valid": 146,
+        "n_nan": 0
+      },
+      "c_npmi": {
+        "mean": 0.13247898994096466,
+        "std": 0.07391439195298251,
+        "median": 0.12934004602259475,
+        "n_valid": 146,
+        "n_nan": 0
+      },
+      "u_mass": {
+        "mean": -2.70186781725431,
+        "std": 0.9927104226579684,
+        "median": -2.427075869313659,
+        "n_valid": 146,
+        "n_nan": 0
+      }
+    }
+  },
+  "phase2": {
+    "phase": "phase2",
+    "n_documents": 42133,
+    "n_topics": 265,
+    "n_outlier_docs": 15868,
+    "outlier_share": 0.3766169036147438,
+    "topic_size_min": 25,
+    "topic_size_max": 1091,
+    "topic_size_median": 59.0,
+    "topic_diversity_top100": 0.28720754716981134,
+    "top_n_coherence": 10,
+    "top_n_diversity": 100,
+    "coherence": {
+      "c_v": {
+        "mean": 0.7154534418235055,
+        "std": 0.119208848202719,
+        "median": 0.7118649335221227,
+        "n_valid": 265,
+        "n_nan": 0
+      },
+      "c_npmi": {
+        "mean": 0.15676289849946018,
+        "std": 0.07982281676585136,
+        "median": 0.15055407781097468,
+        "n_valid": 265,
+        "n_nan": 0
+      },
+      "u_mass": {
+        "mean": -2.8795927979762292,
+        "std": 1.045974682491268,
+        "median": -2.659184650413309,
+        "n_valid": 265,
+        "n_nan": 0
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-# F3-Pipeline v1.1: Membership-Scoring zur Detektion von Weak Signals
+# F3-Pipeline v1.2: Membership-Scoring zur Detektion von Weak Signals
 # Reproduktionsabhaengigkeiten — Stand 2026-05
 #
 # Versionsstrategie:
@@ -29,6 +29,9 @@ nltk>=3.8,<4.0
 # Statistik / Faktorenanalyse
 factor_analyzer>=0.5,<1.0
 statsmodels>=0.14,<1.0
+
+# Topic-Modell-Güte (step03c_topic_quality.py)
+gensim>=4.3,<5.0
 
 # Visualisierung
 matplotlib>=3.7,<4.0

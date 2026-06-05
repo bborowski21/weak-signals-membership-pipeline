@@ -1,5 +1,5 @@
 # =============================================================================
-# F3-Pipeline v1.1 — .gitignore
+# F3-Pipeline v1.2 — .gitignore
 # =============================================================================
 # Ziel: Repository enthaelt ausschliesslich Code, Konfiguration und
 # Dokumentation. Daten, Outputs und Cache-Artefakte bleiben lokal.
