@@ -49,7 +49,7 @@ entspricht einem Modul; gemeinsame Konfiguration in `config.py`.
 | 2       | 16 Indikatoren über 5 Dimensionen | `step02_indicators.py` |
 | 2b      | Zitations-Kohärenz ($\rho_t$) | `step02b_reference_overlap.py` |
 | 2b'     | Membership-Scoring (kontinuierlich, Sigmoid) | `step02b_memberships.py` |
-| 3       | EFA/PCA — interne Strukturkohärenz | `step03_efa_pca.py` |
+| 3       | EFA (minres, Oblimin) — interne Strukturkohärenz; PCA nur als etikettierter Robustheitscheck | `step03_efa_pca.py` |
 | 3b      | Externe Konstruktvalidierung (RTW/CTW) | `step03b_external_validation.py` |
 | 4       | Phaseninterne Visualisierungen | `step04_visualizations.py` |
 | 4c      | Cross-Phase-Visualisierungen | `step04c_cross_phase_viz.py` |
@@ -193,16 +193,22 @@ Tabelle 3.6 der Masterarbeit.
 ├── build_step5_artifacts.py
 ├── clean_pipeline_data.py
 ├── generate_synthetic_artifacts.py
-└── rerender_loading_matrices.py
+├── rerender_loading_matrices.py
+└── render_efa_pub.py
 ```
 
 ## Versionierung
 
-Die in der Masterarbeit referenzierte Version ist über das Git-Tag
-`v1.2` fixiert und besitzt eine eigene Zenodo-DOI. v1.2 erweitert
-v1.1 um das Topic-Modell-Güte-Modul (`step03c_topic_quality.py`).
-Spätere Weiterentwicklungen erscheinen unter weiteren Tags
-(`v1.3`, `v2.0`), ohne den zitierten Stand zu modifizieren.
+Die in der finalen Fassung der Masterarbeit referenzierte Version ist
+über das Git-Tag `v1.3` fixiert und besitzt eine eigene Zenodo-DOI.
+v1.3 stellt Schritt 3 von einer PCA-Realisierung auf eine gemeinsame
+Faktorenanalyse um (minres-Extraktion, Oblimin-Rotation; Pattern- und
+Faktorkorrelationsmatrizen, Horn-Parallelanalyse auf der unreduzierten
+Korrelationsmatrix mit dokumentierter SMC-Diagnostik); die PCA bleibt
+als etikettierter Robustheitscheck erhalten. v1.2 erweiterte v1.1 um
+das Topic-Modell-Güte-Modul (`step03c_topic_quality.py`). Spätere
+Weiterentwicklungen erscheinen unter weiteren Tags, ohne den
+zitierten Stand zu modifizieren.
 
 ## Lizenz
 
