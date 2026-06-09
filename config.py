@@ -117,7 +117,7 @@ DIM_COLORS = {
     "Wirkungspotenzial": "#9B59B6",
 }
 
-FIG_DPI = 150
+FIG_DPI = 300
 
 
 SENSITIVITY_MIN_CLUSTER_GRID     = [15, 20, 25, 30, 40]

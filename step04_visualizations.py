@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore")
@@ -50,18 +51,20 @@ def plot_radar_profiles(classified: pd.DataFrame, output_path: str):
         values = subset[DIM_NAMES].mean().tolist()
         values += values[:1]
 
-        ax.plot(angles, values, "o-", color=color, linewidth=2,
-                label=f"{signal_type} (n={len(subset)})")
+        ax.plot(angles, values, "o-", color=color, linewidth=2.4,
+                markersize=6, label=f"{signal_type} (n={len(subset)})")
         ax.fill(angles, values, alpha=0.1, color=color)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=11)
+    ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=13)
     for label, dim in zip(ax.get_xticklabels(), DIM_NAMES):
         label.set_color(DIM_COLORS[dim])
         label.set_fontweight("bold")
     ax.set_title("Signalprofil-Vergleich\n(Mittlere Dimensionsscores pro Signaltyp)",
-                 fontsize=14, pad=20)
-    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), fontsize=10)
+                 fontsize=15, pad=26)
+    ax.tick_params(axis="y", labelsize=10)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=3,
+              fontsize=11, frameon=False)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -197,7 +200,7 @@ def plot_dimension_heatmap(classified: pd.DataFrame, topic_keywords: dict,
         label.set_color(DIM_COLORS[dim])
         label.set_fontweight("bold")
     ax.set_yticks(range(len(labels)))
-    ax.set_yticklabels(labels, fontsize=6)
+    ax.set_yticklabels(labels, fontsize=7)
 
     for i, (_, row) in enumerate(sorted_df.iterrows()):
         color = SIGNAL_COLORS.get(row["signal_type"], "#999999")
@@ -233,7 +236,7 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
     n_cols = min(3, len(top_ws))
     n_rows = (len(top_ws) + n_cols - 1) // n_cols
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 6 * n_rows),
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 6.5 * n_rows),
                               subplot_kw=dict(polar=True))
     if n_rows == 1 and n_cols == 1:
         axes = np.array([axes])
@@ -261,10 +264,13 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
         ax.fill(angles, values, alpha=0.15, color="#e74c3c")
 
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=8)
+        ax.set_xticklabels(DIM_LABELS_RADAR, fontsize=11)
         for label, dim in zip(ax.get_xticklabels(), DIM_NAMES):
             label.set_color(DIM_COLORS[dim])
             label.set_fontweight("bold")
+        ax.yaxis.set_major_locator(MaxNLocator(4))
+        ax.set_rlabel_position(36)
+        ax.tick_params(axis="y", labelsize=7)
 
         kws = topic_keywords.get(idx, [])
         kw_str = ", ".join([w for w, _ in kws[:3]])
@@ -274,15 +280,16 @@ def plot_ws_detail_radars(classified: pd.DataFrame, topic_keywords: dict,
         ax.set_title(
             f"T{idx}: {kw_str[:35]}\n"
             f"WS-dist={row['ws_distance']:.2f}; Margin={margin:.2f}",
-            fontsize=10, pad=15,
+            fontsize=11, pad=12,
         )
 
     for j in range(i + 1, len(axes)):
         axes[j].set_visible(False)
 
     fig.suptitle("Top Weak Signal Profile — Individuelle Dimensionsanalyse",
-                 fontsize=14, y=1.02)
+                 fontsize=16, y=1.01)
     plt.tight_layout()
+    plt.subplots_adjust(hspace=0.45, wspace=0.45, top=0.93)
     plt.savefig(output_path, dpi=FIG_DPI, bbox_inches="tight")
     plt.close()
     print(f"  WS Detail-Radars gespeichert: {output_path}")
@@ -359,7 +366,7 @@ def plot_membership_heatmap(classified: pd.DataFrame, topic_keywords: dict,
         fontsize=10, rotation=20, ha="right"
     )
     ax.set_yticks(range(len(labels)))
-    ax.set_yticklabels(labels, fontsize=6)
+    ax.set_yticklabels(labels, fontsize=7)
 
     plt.colorbar(im, ax=ax, label="Membership-Score [0, 1]", shrink=0.5)
     ax.set_title(

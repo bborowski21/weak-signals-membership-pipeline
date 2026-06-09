@@ -187,7 +187,7 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
         n = int(p1_totals.iloc[i])
         ax.text(x_left - box_w - 0.01, (top + bot) / 2.0,
                 f"{cls_name}\n(n={n})", ha="right", va="center",
-                fontsize=10, fontweight="bold")
+                fontsize=11, fontweight="bold")
 
     for j, (top, bot) in enumerate(p2_stack):
         cls_name = cls[j]
@@ -199,7 +199,7 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
         n = int(p2_totals.iloc[j])
         ax.text(x_right + box_w + 0.01, (top + bot) / 2.0,
                 f"{cls_name}\n(n={n})", ha="left", va="center",
-                fontsize=10, fontweight="bold")
+                fontsize=11, fontweight="bold")
 
     for _, row in cell.iterrows():
         i, j = int(row["i"]), int(row["j"])
@@ -243,7 +243,7 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
         f"Membership-Migrations-Sankey: Phase 1 -> Phase 2\n"
         f"({len(m)} gematchte Topics; Alpha ~ Match-Cosine; "
         f"Hatch ~ knappe Migration, Margin < 0.10 in P1 oder P2)",
-        fontsize=13, pad=15,
+        fontsize=14, pad=16,
     )
     ax.text(x_left - box_w / 2.0, 1.06, "Phase 1\n(2000-2015)",
             ha="center", va="bottom", fontsize=11, fontweight="bold")
@@ -263,7 +263,7 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
     ax.legend(
         handles=[legend_clear, legend_knapp],
         loc="lower center", bbox_to_anchor=(0.5, -0.06),
-        ncol=2, fontsize=9, frameon=False,
+        ncol=2, fontsize=10, frameon=False,
     )
 
     plt.tight_layout()
@@ -381,7 +381,7 @@ def plot_structure_compare_radar(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
             label="Phase 2, Median")
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(DIM_SHORT_LIST, fontsize=12)
+    ax.set_xticklabels(DIM_SHORT_LIST, fontsize=13)
     for tlab, dim in zip(ax.get_xticklabels(), DIM_NAMES):
         tlab.set_color(DIM_COLORS[dim])
         tlab.set_fontweight("bold")
@@ -389,9 +389,10 @@ def plot_structure_compare_radar(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
     ax.set_title(
         "Strukturvergleich (matching-frei)\n"
         f"Profile pro Phase: q{int(q*100)}-Quantil (Spitzenstruktur) und Median",
-        fontsize=13, pad=22,
+        fontsize=15, pad=24,
     )
-    ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.10), fontsize=9)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=2,
+              fontsize=10, frameon=False)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
