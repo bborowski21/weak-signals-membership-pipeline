@@ -16,7 +16,7 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals* (Version v1.2) [Software]. Zenodo.
+> von Weak Signals* (Version v1.3) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 
 BibTeX:
@@ -25,7 +25,7 @@ BibTeX:
 @software{borowski_pipeline_2026,
   author    = {Borowski, Ben-Nicholas},
   title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
-  version   = {v1.2},
+  version   = {v1.3},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
@@ -117,21 +117,17 @@ Gründen ist der Korpus nicht Teil des Repositories.
 Die Pipeline ist jedoch reproduzierbar auf jeder WoS-Lieferung, die
 die 17 in der Methoden-Sektion 3.1.1 dokumentierten Felder umfasst.
 
-### Indikator-Datenstatus (Mai-2026-Lieferung)
+### Indikator-Datenstatus (finale Mai-2026-Lieferung)
 
-Die KATI-Mai-2026-Tranche liefert *Adress Org* (Affiliations + Addresses)
-und *Countries* (algorithmisch bereinigte ISO-3-Codes). Daraus folgt:
+Die finale KATI-Tranche (Mai 2026) liefert alle 17 konstitutiven
+WoS-Felder, einschließlich *Author Full Names* und *Cited References*.
+Damit sind **alle 16 Indikatoren aktiv** (inkl. `DI1`,
+Autoren-Konzentration) und die Zitations-Kohärenzprüfung
+(`step02b_reference_overlap.py`, $\rho_t$) ist auf beiden Phasen
+durchgeführt (Cited-References-Abdeckung: P1 >99,9 %, P2 99,5 %).
+Der dokumentierte NaN-Fallback bleibt als defensive Vorrichtung für
+reduzierte Datenlieferungen erhalten.
 
-- **Aktiv** (15 von 16 Indikatoren): alle EO-, WP-, WN-Indikatoren sowie
-  `DI2` (institutionelle Konzentration; via Affiliations) und `DI3`
-  (geografische Konzentration; via ISO-3-Country-List bzw. Addresses).
-- **Blockiert** (NaN-Fallback, kein Pipeline-Abbruch):
-  - `DI1` (Autoren-Konzentration) — benötigt `Author Full Names` / ORCIDs.
-  - Schritt 2b (`step02b_reference_overlap.py`, Zitations-Kohärenz $\rho_t$)
-    — benötigt `Cited References`.
-
-Beide Felder fehlen im aktuellen WoS-Export; die zugehörigen Funktionen
-werden bei späterer Datenverfügbarkeit ohne Code-Änderung aktiv.
 
 Ein synthetischer Mini-Korpus zum Smoke-Test der Pipeline kann über
 `generate_synthetic_artifacts.py` erzeugt werden:
@@ -146,15 +142,15 @@ Zentrale Hyperparameter in `config.py`:
 
 ```python
 SBERT_MODEL              = "all-MiniLM-L6-v2"
-MIN_CLUSTER_SIZE         = 15
+HDBSCAN_MIN_CLUSTER_SIZE = 25
 MEMBERSHIP_SIGMOID_K     = 1.0    # Trennschärfe-Parameter (V2)
 MEMBERSHIP_LAMBDA_WP     = 0.5    # WP-Gewichtung in m_trend (V2)
 HYBRID_ALPHA             = 0.6    # Cosine-Anteil im Hybrid-Score
 ```
 
 Die Sensitivitätsanalyse (`step05`) variiert diese Parameter über
-ein zweidimensionales $k \times \lambda$-Grid, dokumentiert in
-Tabelle 3.6 der Masterarbeit.
+ein zweidimensionales $k \times \lambda$-Grid; Design und Ergebnisse
+sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 ## Repository-Struktur
 
