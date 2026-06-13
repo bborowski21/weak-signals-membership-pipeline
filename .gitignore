@@ -73,3 +73,4 @@ config.local.py
 .DS_Store
 Thumbs.db
 desktop.ini
+ws_topic_tables.tex
