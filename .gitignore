@@ -74,3 +74,4 @@ config.local.py
 Thumbs.db
 desktop.ini
 ws_topic_tables.tex
+figures_ws/
