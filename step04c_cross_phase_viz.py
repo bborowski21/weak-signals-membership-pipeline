@@ -409,6 +409,74 @@ def plot_structure_compare_radar(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
 
 
 
+def _load_reference_overlap(phase_dir, ph: int) -> pd.Series:
+    """Laedt rho_t (ratio_vs_global) je Topic; leere Serie, falls nicht vorhanden."""
+    path = phase_dir / f"reference_overlap_p{ph}.csv"
+    if not path.exists():
+        return pd.Series(dtype=float)
+    return pd.read_csv(path).set_index("topic")["ratio_vs_global"]
+
+
+def plot_ws_membership_scatter(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
+                               ro1: pd.Series, ro2: pd.Series,
+                               output_path) -> dict:
+    """Streudiagramm aller WS-dominanten Topics beider Phasen aus
+    Weak-Signal-Membership (m_ws) und Referenzkohaerenz (rho_t, log-Skala).
+
+    Macht sichtbar, dass die WS-Klasse weit ueberwiegend referenz-kohaerent ist
+    und nur wenige Topics unter die Korpus-Baseline (rho_t = 1) fallen.
+    Speichert PNG (FIG_DPI) und PDF.
+    """
+    FLOOR = 0.25  # Anzeigeboden fuer rho_t -> 0 auf der Log-Skala
+    PHASE_COLORS = {1: "#2C3E50", 2: "#E67E22"}
+    PHASE_LABELS = {1: "Phase 1 (2000–2015)", 2: "Phase 2 (2016–2025)"}
+    ANNOT_P2 = {0: "T0", 73: "T73", 141: "T141", 188: "T188", 153: "T153"}
+
+    fig, ax = plt.subplots(figsize=(9.2, 6.2))
+    ax.axhspan(FLOOR * 0.88, 1.0, color="#E74C3C", alpha=0.07, zorder=0)
+
+    counts = {}
+    for ph, df, ro, col in [(1, df_p1, ro1, PHASE_COLORS[1]),
+                            (2, df_p2, ro2, PHASE_COLORS[2])]:
+        ws = df[df["signal_type"] == "Weak Signal"]
+        counts[ph] = len(ws)
+        x = ws["m_ws"].values
+        y = np.array([max(ro.get(t, FLOOR), FLOOR) for t in ws.index])
+        ax.scatter(x, y, c=col, s=58, alpha=0.78, edgecolors="white",
+                   linewidths=0.6, zorder=3,
+                   label=f"{PHASE_LABELS[ph]}  (n={len(ws)})")
+        if ph == 2:
+            for t, lab in ANNOT_P2.items():
+                if t in ws.index:
+                    yt = max(ro.get(t, FLOOR), FLOOR)
+                    ax.annotate(lab, (ws.loc[t, "m_ws"], yt),
+                                textcoords="offset points", xytext=(6, 4),
+                                fontsize=9, fontweight="bold", color=col, zorder=4)
+
+    ax.axhline(1.0, color="#555555", ls="--", lw=1.2, alpha=0.85, zorder=2)
+    ax.text(0.503, 1.10, r"$\rho_t = 1$  (Korpus-Baseline; darunter referenz-heterogen)",
+            fontsize=9, color="#555555")
+    ax.set_yscale("log")
+    ax.set_xlabel("Weak-Signal-Membership  $m_{\\mathrm{ws}}$", fontsize=12)
+    ax.set_ylabel("Referenzkohärenz  $\\rho_t$  (log-Skala)", fontsize=12)
+    ax.set_title("WS-dominante Topics: Membership-Stärke vs. Referenzkohärenz",
+                 fontsize=13, fontweight="bold")
+    ax.set_xlim(0.49, 0.97)
+    ax.legend(loc="upper right", framealpha=0.92, fontsize=10)
+    ax.grid(True, which="both", alpha=0.22)
+    fig.tight_layout()
+
+    out = str(output_path)
+    plt.savefig(out, dpi=FIG_DPI, bbox_inches="tight")
+    pdf = out[:-4] + ".pdf" if out.lower().endswith(".png") else out + ".pdf"
+    plt.savefig(pdf, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  WS-Scatter gespeichert: {output_path} (+ PDF)")
+    return {"n_ws_p1": counts[1], "n_ws_p2": counts[2],
+            "n_below_baseline_p2": int(sum(ro2.get(t, 1.0) < 1.0
+                                       for t in df_p2[df_p2['signal_type'] == 'Weak Signal'].index))}
+
+
 def run() -> dict:
     print("\n" + "=" * 70)
     print("CROSS-PHASE VISUALISIERUNGEN (Pipeline V2)")
@@ -448,6 +516,12 @@ def run() -> dict:
     print("3. Strukturvergleich-Radar (matching-frei)...")
     info_radar = plot_structure_compare_radar(df_p1, df_p2, out_radar)
 
+    print("4. WS-Membership-Streudiagramm (m_ws x rho_t)...")
+    ro1 = _load_reference_overlap(P1_DIR, 1)
+    ro2 = _load_reference_overlap(P2_DIR, 2)
+    out_scatter = CROSS_DIR / "ws_membership_scatter.png"
+    info_scatter = plot_ws_membership_scatter(df_p1, df_p2, ro1, ro2, out_scatter)
+
     print("\n" + "=" * 70)
     print("FERTIG: Cross-Phase-Visualisierungen")
     print(f"  Ausgaben in: {CROSS_DIR}")
@@ -457,6 +531,7 @@ def run() -> dict:
         "sankey": info_sankey,
         "shift_heatmap": info_heat,
         "structure_radar": info_radar,
+        "ws_scatter": info_scatter,
     }
 
 

@@ -252,57 +252,28 @@ def crossphase_table(mems: dict, kws: dict) -> str:
 
 
 def plot_ws_scatter(data: dict, out_dir: Path) -> tuple[Path, int]:
-    """Streudiagramm m_ws x rho_t (log) aller WS-dominanten Topics, nach Phase
-    eingefaerbt; macht die Referenz-Heterogenitaet einzelner WS-Topics sichtbar."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    try:
-        from plot_style import apply_pub_style
-        apply_pub_style()
-    except Exception:
-        pass
+    """Erzeugt das WS-Membership-Streudiagramm.
 
-    FLOOR = 0.25  # Anzeigeboden fuer rho_t -> 0 (log-Skala)
-    colors = {1: "#1f3b5c", 2: "#E67E22"}
-    labels = {1: "Phase 1 (2000–2015)", 2: "Phase 2 (2016–2025)"}
-    annot = {0: "T0", 153: "T153", 188: "T188"}
+    Delegiert an die kanonische Pipeline-Funktion
+    step04c_cross_phase_viz.plot_ws_membership_scatter, damit die Abbildung
+    nur EINE Implementierung besitzt (Single Source of Truth). Die hier
+    geladenen Memberships werden um die Signal-Typ-Spalte ergaenzt und an die
+    Pipeline-Funktion uebergeben.
+    """
+    from step04c_cross_phase_viz import (
+        plot_ws_membership_scatter, MEMBERSHIP_COLUMNS, MEMBERSHIP_LABELS)
 
-    fig, ax = plt.subplots(figsize=(9.0, 6.0))
-    ax.axhspan(FLOOR * 0.9, 1.0, color="#cc3333", alpha=0.06, zorder=0)
-    n_total = 0
-    for ph in (1, 2):
-        ind, mem, kw, tcol, kcol, ro = data[ph]
-        arg = mem[["m_ws", "m_trend", "m_ec", "m_latent"]].idxmax(axis=1)
-        ws = mem[arg == "m_ws"]
-        n_total += len(ws)
-        x = ws["m_ws"].values
-        y = np.array([max(ro.get(t, FLOOR), FLOOR) for t in ws.index])
-        ax.scatter(x, y, c=colors[ph], label=f"{labels[ph]} (n={len(ws)})",
-                   alpha=0.78, edgecolors="white", s=58, linewidths=0.6, zorder=3)
-        if ph == 2:
-            for t, lab in annot.items():
-                if t in ws.index:
-                    yt = max(ro.get(t, FLOOR), FLOOR)
-                    ax.annotate(lab, (ws.loc[t, "m_ws"], yt),
-                                textcoords="offset points", xytext=(6, 4),
-                                fontsize=9, color=colors[2], fontweight="bold")
-    ax.axhline(1.0, color="gray", ls="--", lw=1.1, alpha=0.8, zorder=2)
-    ax.text(0.505, 1.12, r"$\rho_t = 1$  (Korpus-Baseline; darunter referenz-heterogen)",
-            fontsize=9, color="gray")
-    ax.set_yscale("log")
-    ax.set_xlabel(r"Weak-Signal-Membership  $m_{\mathrm{ws}}$")
-    ax.set_ylabel("Referenzkohärenz  $\\rho_t$  (log-Skala)")
-    ax.set_title("WS-dominante Topics: Membership-Stärke vs. Referenzkohärenz")
-    ax.set_xlim(0.49, 0.97)
-    ax.legend(loc="upper right", framealpha=0.9)
-    ax.grid(True, which="both", alpha=0.25)
-    fig.tight_layout()
+    def with_signal_type(mem: pd.DataFrame) -> pd.DataFrame:
+        df = mem.copy()
+        df["signal_type"] = df[MEMBERSHIP_COLUMNS].idxmax(axis=1).map(MEMBERSHIP_LABELS)
+        return df
+
+    df1 = with_signal_type(data[1][1])
+    df2 = with_signal_type(data[2][1])
+    ro1, ro2 = data[1][5], data[2][5]
     png = out_dir / "ws_scatter.png"
-    fig.savefig(png, dpi=300, bbox_inches="tight")
-    fig.savefig(out_dir / "ws_scatter.pdf", bbox_inches="tight")
-    plt.close(fig)
-    return png, n_total
+    info = plot_ws_membership_scatter(df1, df2, ro1, ro2, png)
+    return png, info["n_ws_p1"] + info["n_ws_p2"]
 
 
 def main():
