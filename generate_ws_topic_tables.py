@@ -183,7 +183,10 @@ def phase_longtable(ph: int, ind, mem, kw, tcol, kcol, ro) -> str:
             f"{top_keywords(kw, tcol, kcol, t)} \\\\")
     header = (
         r"{\footnotesize" "\n"
-        r"\begin{longtable}{@{}rrrrrrr p{4.6cm}@{}}" "\n"
+        r"\setlength{\tabcolsep}{5pt}" "\n"
+        r"\renewcommand{\arraystretch}{1.25}" "\n"
+        r"\rowcolors{2}{black!5}{white}" "\n"
+        r"\begin{longtable}{@{}r r r r r r r >{\raggedright\arraybackslash}p{4.7cm}@{}}" "\n"
         r"\caption[WS-dominante Topics in Phase " + str(ph) + r"]{Vollst\"andige "
         r"Liste der " + str(len(ws)) + r" WS-dominanten Topics in Phase~" + str(ph)
         + r" (" + years + r") mit vollst\"andigem Membership-Vektor "
@@ -234,7 +237,9 @@ def crossphase_table(mems: dict, kws: dict) -> str:
                     f"& {comma(mems[2].loc[t2,'m_ws'])} & {kwtext} \\\\")
     return (
         r"\begin{table}[H]\centering\small" "\n"
-        r"\begin{tabularx}{\textwidth}{@{}rrrrr X@{}}" "\n"
+        r"\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.25}" "\n"
+        r"\rowcolors{2}{black!5}{white}" "\n"
+        r"\begin{tabularx}{\textwidth}{@{}rrrrr >{\raggedright\arraybackslash}X@{}}" "\n"
         r"\toprule" "\n"
         r"\textbf{P1-Topic} & \textbf{P2-Topic} & \textbf{Hybrid-Score} & "
         r"\textsf{m\textsubscript{ws}} (P1) & \textsf{m\textsubscript{ws}} (P2) & "
