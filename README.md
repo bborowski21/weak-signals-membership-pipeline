@@ -16,7 +16,7 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals* (Version v1.3) [Software]. Zenodo.
+> von Weak Signals* (Version v2.1) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 
 BibTeX:
@@ -25,7 +25,7 @@ BibTeX:
 @software{borowski_pipeline_2026,
   author    = {Borowski, Ben-Nicholas},
   title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
-  version   = {v1.3},
+  version   = {v2.1},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
@@ -196,8 +196,8 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 ## Versionierung
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
-über das Git-Tag `v1.3` fixiert und besitzt eine eigene Zenodo-DOI.
-v1.3 stellt Schritt 3 von einer PCA-Realisierung auf eine gemeinsame
+über das Git-Tag `v2.1` fixiert und besitzt eine eigene Zenodo-DOI.
+v2.1 stellt Schritt 3 von einer PCA-Realisierung auf eine gemeinsame
 Faktorenanalyse um (minres-Extraktion, Oblimin-Rotation; Pattern- und
 Faktorkorrelationsmatrizen, Horn-Parallelanalyse auf der unreduzierten
 Korrelationsmatrix mit dokumentierter SMC-Diagnostik); die PCA bleibt
