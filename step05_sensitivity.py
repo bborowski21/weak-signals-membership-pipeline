@@ -131,6 +131,117 @@ def _aggregate_dimensions(indicator_df: pd.DataFrame,
 
 
 
+def growth_rate_rightedge(
+        output_dir: Path,
+        baseline_memberships: pd.DataFrame,
+        indicator_df: pd.DataFrame,
+        df: pd.DataFrame,
+        labels: np.ndarray) -> pd.DataFrame:
+    """WP1-Rechtsrand-Bias-Diagnostik (Kap. 3): CAGR-Referenz (step01) gegen
+    OLS-Steigung und Half-Split-Median (step01d), jeweils voll vs. mit
+    entferntem (unvollstaendig indexiertem) Endjahr, plus Durchgriff auf die
+    Membership-Klassifikation unter de-biased WP1.
+
+    Schreibt growth_rate_comparison.csv und wp1_membership_stability.csv und
+    gibt eine einzeilige Kennzahl-Zusammenfassung fuer den Bericht zurueck.
+    Entscheidungsregel (Methodenteil): rho(OLS, Half-Split) > 0.9 => CAGR
+    beibehalten; sonst Half-Split-Fallback.
+    """
+    from step01d_tem_robustness import (
+        compute_topic_proportions, linear_growth_rate, half_split_growth_rate,
+        detect_partial_years,
+    )
+
+    def _cagr(years: np.ndarray, props: np.ndarray) -> float:
+        # = step01 compute_tem_metrics: erste/letzte Nicht-Null-Proportion
+        s = pd.Series(props, index=years).sort_index()
+        nz = s[s > 0]
+        if len(nz) < 2:
+            return 0.0
+        ps, pe = nz.iloc[0], nz.iloc[-1]
+        ny = nz.index[-1] - nz.index[0]
+        return (pe / ps) ** (1 / ny) - 1 if ny > 0 and ps > 0 else 0.0
+
+    dfa = df.copy()
+    dfa["topic"] = labels
+    dfa = dfa[dfa["topic"] >= 0]
+    end_year = int(dfa["Year"].dropna().astype(int).max())
+
+    # Fallback nur, wenn das Endjahr tatsaechlich unvollstaendig indexiert ist
+    # (Teiljahr-Detektor aus step01d). Phasen mit vollstaendigem Endjahr (z. B.
+    # P1/2015) sind Kontrolle -- die Regel rho>0.9 wird dort nicht angewandt.
+    year_counts = dfa["Year"].dropna().astype(int).value_counts().sort_index()
+    partial_end = any(int(p[0]) == end_year for p in detect_partial_years(year_counts))
+
+    prop_full = compute_topic_proportions(dfa, end_year=end_year)
+    prop_trim = compute_topic_proportions(dfa, end_year=end_year - 1)
+    trim_by_topic = {t: g for t, g in prop_trim.groupby("topic")}
+
+    rows = []
+    for t, g in prop_full.groupby("topic"):
+        yf, pf = g["Year"].to_numpy(), g["proportion"].to_numpy()
+        gt = trim_by_topic.get(t)
+        if gt is not None:
+            yt, pt = gt["Year"].to_numpy(), gt["proportion"].to_numpy()
+        else:
+            yt, pt = yf[:-1], pf[:-1]
+        rows.append(dict(
+            topic=int(t),
+            growth_rate_cagr_full=_cagr(yf, pf),
+            growth_rate_cagr_trim=_cagr(yt, pt),
+            growth_rate_ols_full=linear_growth_rate(yf, pf),
+            growth_rate_ols_trim=linear_growth_rate(yt, pt),
+            growth_rate_halfsplit=half_split_growth_rate(yf, pf),
+        ))
+    R = pd.DataFrame(rows).set_index("topic").sort_index()
+    R["growth_rate_delta"] = R["growth_rate_cagr_trim"] - R["growth_rate_cagr_full"]
+    R.round(6).to_csv(output_dir / "growth_rate_comparison.csv")
+
+    rho_ols_hs = float(spearmanr(R["growth_rate_ols_full"],
+                                 R["growth_rate_halfsplit"])[0])
+    rho_cagr = float(spearmanr(R["growth_rate_cagr_full"],
+                               R["growth_rate_cagr_trim"])[0])
+
+    # Durchgriff: Memberships mit de-biased (getrimmtem) Wachstumsindikator
+    ind_trim = indicator_df.copy()
+    common = R.index.intersection(ind_trim.index)
+    ind_trim.loc[common, "growth_rate"] = R.loc[common, "growth_rate_cagr_trim"]
+    memb_trim = _compute_memberships_from_dims(
+        _aggregate_dimensions(ind_trim), ind_trim)
+
+    a_base = baseline_memberships[MEMBERSHIP_COLS].idxmax(axis=1)
+    a_trim = memb_trim[MEMBERSHIP_COLS].idxmax(axis=1)
+    idx = a_base.index.intersection(a_trim.index)
+    changed = a_base.loc[idx] != a_trim.loc[idx]
+    pd.DataFrame({"argmax_baseline": a_base.loc[idx],
+                  "argmax_detrend": a_trim.loc[idx],
+                  "changed": changed}).to_csv(
+        output_dir / "wp1_membership_stability.csv")
+
+    if not partial_end:
+        decision = "CAGR beibehalten (kein unvollstaendiges Endjahr -- Kontrolle)"
+    elif rho_ols_hs > 0.9:
+        decision = "CAGR beibehalten"
+    else:
+        decision = "Half-Split-Fallback"
+
+    d = R["growth_rate_delta"]
+    return pd.DataFrame([{
+        "end_year": end_year,
+        "partial_end_year": "ja" if partial_end else "nein",
+        "n_topics": int(len(R)),
+        "rho_ols_vs_halfsplit": round(rho_ols_hs, 3),
+        "rho_cagr_full_vs_trim": round(rho_cagr, 3),
+        "median_shift_trim_minus_full": round(float(d.median()), 4),
+        "mean_abs_delta": round(float(d.abs().mean()), 4),
+        "topics_biased_down": int((d > 0).sum()),
+        "argmax_stable_pct": round(float((~changed).mean()) * 100, 1),
+        "ws_baseline": int((a_base == "m_ws").sum()),
+        "ws_detrend": int((a_trim == "m_ws").sum()),
+        "decision": decision,
+    }])
+
+
 def membership_sensitivity_k_lambda(
         baseline_memberships: pd.DataFrame,
         indicator_df: pd.DataFrame,
@@ -651,6 +762,17 @@ def write_report(output_dir: Path, results: dict):
     md.append("Variante mit Exklusion der letzten 12 Monate für DI4, WP2.\n")
     md.append(results["latency"].to_markdown(index=False) + "\n")
 
+    if "growth_rightedge" in results:
+        md.append("## 7. WP1-Rechtsrand-Bias (Wachstumsraten-Schätzung)\n")
+        md.append("CAGR (Referenz, step01) gegen OLS-Steigung und "
+                  "Half-Split-Median (step01d), full vs. Endjahr-Trim. "
+                  "Entscheidungsregel: ρ(OLS, Half-Split) > 0.9 ⇒ CAGR "
+                  "beibehalten. 'argmax_stable_pct' misst den Durchgriff auf "
+                  "die Membership-Klassifikation unter de-biased WP1. "
+                  "Artefakte: growth_rate_comparison.csv, "
+                  "wp1_membership_stability.csv.\n")
+        md.append(results["growth_rightedge"].to_markdown(index=False) + "\n")
+
     report_path = output_dir / "sensitivity_report.md"
     report_path.write_text("\n".join(md), encoding="utf-8")
     print(f"  [step05] Bericht gespeichert: {report_path}")
@@ -715,6 +837,12 @@ def run(output_dir: Path = None):
     print("  (6/7) Indexierungs-/Rezeptionslatenz …")
     results["latency"] = indexing_latency_variant(df, labels)
     results["latency"].to_csv(output_dir / "sensitivity_latency.csv", index=False)
+
+    print("  (7/7) WP1-Rechtsrand-Bias (CAGR vs. OLS/Half-Split) …")
+    results["growth_rightedge"] = growth_rate_rightedge(
+        output_dir, baseline_memberships, indicator_df, df, labels)
+    results["growth_rightedge"].to_csv(
+        output_dir / "sensitivity_growth_rightedge.csv", index=False)
 
     write_report(output_dir, results)
     print("=== SCHRITT 5 abgeschlossen (Pipeline V2) ===")
