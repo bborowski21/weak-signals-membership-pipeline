@@ -32,9 +32,9 @@ def build_steps(only_phase: int | None = None,
 
     if not skip_cross and only_phase is None:
         steps.append((
-            "1c",
+            "1b",
             "Cross-Phase-Matching",
-            [PYTHON, "step01c_cross_phase_matching.py"],
+            [PYTHON, "step01b_cross_phase_matching.py"],
         ))
 
     add_phase_step("2", "Indikatoren + Memberships", "run_phase_indicators.py")
@@ -45,15 +45,15 @@ def build_steps(only_phase: int | None = None,
 
     add_phase_step("4", "Visualisierungen", "run_phase_viz.py")
 
-    add_phase_step("5a", "Step5-Artefakte", "build_step5_artifacts.py")
+    add_phase_step("5b", "Sensitivitäts-Artefakte", "step05b_artifacts.py")
 
-    add_phase_step("5b", "Sensitivitätsanalyse", "run_phase_sensitivity.py")
+    add_phase_step("5", "Sensitivitätsanalyse", "run_phase_sensitivity.py")
 
     if not skip_cross and only_phase is None:
         steps.append((
             "5c",
             "Cross-Phase-Sensitivität (Hybrid-α)",
-            [PYTHON, "run_cross_phase_sensitivity.py"],
+            [PYTHON, "step05c_cross_phase_sensitivity.py"],
         ))
 
     return steps

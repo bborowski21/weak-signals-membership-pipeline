@@ -96,7 +96,7 @@ def stage4_tem_robustness(phase_key: str, label: str) -> None:
     print(f"[Stufe 4/4] TEM-Robustheit (Partial-Year-Detektion + Auto-Trim): {label}")
     cmd = [
         sys.executable,
-        str(BASE_DIR / "step01d_tem_robustness.py"),
+        str(BASE_DIR / "step01c_tem_robustness.py"),
         "--phase", phase_key,
         "--auto-trim",
     ]
@@ -104,7 +104,7 @@ def stage4_tem_robustness(phase_key: str, label: str) -> None:
     if result.returncode != 0:
         print(f"   ⚠  TEM-Robustheit endete mit returncode={result.returncode}")
         print(f"   (Topic Modeling ist bereits abgeschlossen — Stufe 4 manuell "
-              f"nachholbar mit: python step01d_tem_robustness.py --phase "
+              f"nachholbar mit: python step01c_tem_robustness.py --phase "
               f"{phase_key} --auto-trim)")
 
 
@@ -143,7 +143,7 @@ def main() -> None:
     print(f"  → {output_dir}/tem_robust/")
     print()
     print("Nach Abschluss BEIDER Phasen: Cross-Phase-Matching")
-    print("  python step01c_cross_phase_matching.py --with-sbert")
+    print("  python step01b_cross_phase_matching.py --with-sbert")
 
 
 if __name__ == "__main__":

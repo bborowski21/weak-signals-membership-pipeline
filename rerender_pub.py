@@ -53,7 +53,7 @@ plt.savefig = _dual_savefig
 import config
 import step03_efa_pca as s3
 import step04_visualizations as s4
-import step04c_cross_phase_viz as s4c
+import step04b_cross_phase_viz as s4c
 import rerender_loading_matrices as rl
 
 PHASES = [("Phase 1", BASE / "output_phase1"), ("Phase 2", BASE / "output_phase2")]

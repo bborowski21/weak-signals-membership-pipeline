@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 
-import step04c_cross_phase_viz
+import step04b_cross_phase_viz
 
 
 def main() -> None:
@@ -11,7 +11,7 @@ def main() -> None:
     print("CROSS-PHASE VISUALISIERUNGEN — Wrapper")
     print("=" * 70)
     try:
-        info = step04c_cross_phase_viz.run()
+        info = step04b_cross_phase_viz.run()
     except FileNotFoundError as e:
         print(f"FEHLER: {e}")
         sys.exit(2)

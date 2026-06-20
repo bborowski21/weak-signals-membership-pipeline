@@ -110,7 +110,7 @@ def build_step1_artifact(output_dir: Path, data_path: Path,
         print(f"FEHLER: Längen-Mismatch — df={n_df}, labels={n_lab}, "
               f"embeddings={n_emb}")
         print("  Filterlogik in step01 hat sich vermutlich geändert; "
-              "build_step5_artifacts.py muss aktualisiert werden.")
+              "step05b_artifacts.py muss aktualisiert werden.")
         sys.exit(3)
 
     artifact = {

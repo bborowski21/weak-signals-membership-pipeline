@@ -47,6 +47,10 @@ output_sensitivity/
 logs/
 *.log
 
+# --- Generierte LaTeX-Tabellenfragmente (Schritt 2c) -----------------------
+citation_topic_profile_appendix_rows.tex
+citation_topic_profile_rows.tex
+
 # --- Modell- und Embedding-Caches ------------------------------------------
 *.pkl
 *.joblib

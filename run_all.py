@@ -41,11 +41,11 @@ def main():
     )
     parser.add_argument(
         "--from", type=str, default="1", dest="from_step",
-        help="Ab welchem Schritt starten (1, 2, 2b, 3, 3b, 4, 5)"
+        help="Ab welchem Schritt starten (1, 2, 2b, 2c, 3, 3b, 4, 5)"
     )
     parser.add_argument(
         "--only", type=str, default=None,
-        help="Nur diesen einen Schritt ausführen (1, 2, 2b, 3, 3b, 4, 5)"
+        help="Nur diesen einen Schritt ausführen (1, 2, 2b, 2c, 3, 3b, 4, 5)"
     )
     parser.add_argument(
         "--skip", type=str, default=None,
@@ -62,6 +62,8 @@ def main():
                                     "step02_indicators",          False),
         ("2b", "Referenz-Overlap (Cited References)",
                                     "step02b_reference_overlap",  True),
+        ("2c", "Citation-Topic-Profil (Macro/Meso/Micro)",
+                                    "step02c_citation_topic_profile", True),
         ("3",  "Strukturentdeckung (EFA/PCA)",
                                     "step03_efa_pca",             False),
         ("3b", "Externe Validierung (RTW/CTW, MTMM)",

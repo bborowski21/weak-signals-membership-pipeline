@@ -15,7 +15,7 @@ Quelle ist ausschliesslich der Pipeline-Output:
 
 Eine eingebaute Konsistenzpruefung rechnet die Memberships aus indicators_16.csv
 exakt nach (StandardScaler -> Dimensionsmittel -> robust-z -> Sigmoid, vgl.
-step02_indicators.py / step02b_memberships.py) und vergleicht sie mit
+step02_indicators.py / step02_memberships.py) und vergleicht sie mit
 signal_memberships.csv. Weicht ein Wert ab, bricht das Skript ab.
 
 Aufruf:  python generate_ws_topic_tables.py [--out ws_tables.tex]
@@ -260,12 +260,12 @@ def plot_ws_scatter(data: dict, out_dir: Path) -> tuple[Path, int]:
     """Erzeugt das WS-Membership-Streudiagramm.
 
     Delegiert an die kanonische Pipeline-Funktion
-    step04c_cross_phase_viz.plot_ws_membership_scatter, damit die Abbildung
+    step04b_cross_phase_viz.plot_ws_membership_scatter, damit die Abbildung
     nur EINE Implementierung besitzt (Single Source of Truth). Die hier
     geladenen Memberships werden um die Signal-Typ-Spalte ergaenzt und an die
     Pipeline-Funktion uebergeben.
     """
-    from step04c_cross_phase_viz import (
+    from step04b_cross_phase_viz import (
         plot_ws_membership_scatter, MEMBERSHIP_COLUMNS, MEMBERSHIP_LABELS)
 
     def with_signal_type(mem: pd.DataFrame) -> pd.DataFrame:

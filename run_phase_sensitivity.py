@@ -56,12 +56,12 @@ def ensure_artifacts_ready(output_dir: Path, phase_key: str) -> None:
 
     if not (output_dir / "step1_artifacts.pkl").exists():
         print(f"  Hinweis: step1_artifacts.pkl fehlt — "
-              f"baue jetzt automatisch via build_step5_artifacts.py")
+              f"baue jetzt automatisch via step05b_artifacts.py")
         old_argv = sys.argv
         try:
-            sys.argv = ["build_step5_artifacts.py", phase_key]
-            import build_step5_artifacts
-            build_step5_artifacts.main()
+            sys.argv = ["step05b_artifacts.py", phase_key]
+            import step05b_artifacts
+            step05b_artifacts.main()
         finally:
             sys.argv = old_argv
 

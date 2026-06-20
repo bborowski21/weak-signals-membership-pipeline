@@ -489,7 +489,7 @@ def run() -> dict:
     if not CROSS_DIR.exists():
         raise FileNotFoundError(
             f"Cross-Phase-Output {CROSS_DIR} fehlt. "
-            f"Bitte zuerst step01c_cross_phase_matching.py ausfuehren."
+            f"Bitte zuerst step01b_cross_phase_matching.py ausfuehren."
         )
 
     print(f"  P1-Output    : {P1_DIR}")

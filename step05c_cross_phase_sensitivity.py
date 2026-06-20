@@ -27,7 +27,7 @@ def main() -> None:
     print()
 
     import step05_sensitivity
-    step05_sensitivity.run_cross_phase_sensitivity(
+    step05_sensitivity.step05c_cross_phase_sensitivity(
         phase1_dir=args.phase1_dir,
         phase2_dir=args.phase2_dir,
         output_dir=args.out_dir,

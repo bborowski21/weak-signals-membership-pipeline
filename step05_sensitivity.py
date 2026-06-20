@@ -107,7 +107,7 @@ def _compute_memberships_from_dims(
         indicator_df: pd.DataFrame,
         k: float = MEMBERSHIP_SIGMOID_K,
         lambda_wp: float = MEMBERSHIP_LAMBDA_WP) -> pd.DataFrame:
-    from step02b_memberships import compute_memberships
+    from step02_memberships import compute_memberships
     return compute_memberships(
         indicator_df=indicator_df,
         dim_scores=dim_scores,
@@ -138,7 +138,7 @@ def growth_rate_rightedge(
         df: pd.DataFrame,
         labels: np.ndarray) -> pd.DataFrame:
     """WP1-Rechtsrand-Bias-Diagnostik (Kap. 3): CAGR-Referenz (step01) gegen
-    OLS-Steigung und Half-Split-Median (step01d), jeweils voll vs. mit
+    OLS-Steigung und Half-Split-Median (step01c), jeweils voll vs. mit
     entferntem (unvollstaendig indexiertem) Endjahr, plus Durchgriff auf die
     Membership-Klassifikation unter de-biased WP1.
 
@@ -147,7 +147,7 @@ def growth_rate_rightedge(
     Entscheidungsregel (Methodenteil): rho(OLS, Half-Split) > 0.9 => CAGR
     beibehalten; sonst Half-Split-Fallback.
     """
-    from step01d_tem_robustness import (
+    from step01c_tem_robustness import (
         compute_topic_proportions, linear_growth_rate, half_split_growth_rate,
         detect_partial_years,
     )
@@ -168,7 +168,7 @@ def growth_rate_rightedge(
     end_year = int(dfa["Year"].dropna().astype(int).max())
 
     # Fallback nur, wenn das Endjahr tatsaechlich unvollstaendig indexiert ist
-    # (Teiljahr-Detektor aus step01d). Phasen mit vollstaendigem Endjahr (z. B.
+    # (Teiljahr-Detektor aus step01c). Phasen mit vollstaendigem Endjahr (z. B.
     # P1/2015) sind Kontrolle -- die Regel rho>0.9 wird dort nicht angewandt.
     year_counts = dfa["Year"].dropna().astype(int).value_counts().sort_index()
     partial_end = any(int(p[0]) == end_year for p in detect_partial_years(year_counts))
@@ -626,7 +626,7 @@ def hybrid_alpha_sensitivity_cross_phase(
         baseline_alpha: float = 0.6,
         topk: int = 15,
         use_sbert: bool = True) -> pd.DataFrame:
-    from step01c_cross_phase_matching import (
+    from step01b_cross_phase_matching import (
         load_topic_keywords, compute_pairwise_scores, best_matches,
     )
 
@@ -696,7 +696,7 @@ def hybrid_alpha_sensitivity_cross_phase(
     return pd.DataFrame(records)
 
 
-def run_cross_phase_sensitivity(
+def step05c_cross_phase_sensitivity(
         phase1_dir: Path,
         phase2_dir: Path,
         output_dir: Path) -> pd.DataFrame:
@@ -765,7 +765,7 @@ def write_report(output_dir: Path, results: dict):
     if "growth_rightedge" in results:
         md.append("## 7. WP1-Rechtsrand-Bias (Wachstumsraten-Schätzung)\n")
         md.append("CAGR (Referenz, step01) gegen OLS-Steigung und "
-                  "Half-Split-Median (step01d), full vs. Endjahr-Trim. "
+                  "Half-Split-Median (step01c), full vs. Endjahr-Trim. "
                   "Entscheidungsregel: ρ(OLS, Half-Split) > 0.9 ⇒ CAGR "
                   "beibehalten. 'argmax_stable_pct' misst den Durchgriff auf "
                   "die Membership-Klassifikation unter de-biased WP1. "

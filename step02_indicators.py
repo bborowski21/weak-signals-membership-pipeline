@@ -711,7 +711,7 @@ def run():
               f"min={vals.min():+.2f}, max={vals.max():+.2f}")
 
     print(f"\nAlles gespeichert in {OUTPUT_DIR}/")
-    print(f"Nächster Schritt: python step02b_memberships.py")
+    print(f"Nächster Schritt: python step02_memberships.py")
     return indicator_df, dim_scores
 
 

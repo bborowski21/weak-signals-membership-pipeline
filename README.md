@@ -44,16 +44,20 @@ entspricht einem Modul; gemeinsame Konfiguration in `config.py`.
 | 0       | KATI-WoS-Datenaufbereitung; ISO-3-Normalisierung | `prepare_kati_data.py` |
 | 0a      | Textbereinigung (Lemmatisierung, Token-Filter) | `text_preprocessing.py` |
 | 1       | Topic Modeling (SBERT + UMAP + HDBSCAN) | `step01_topic_modeling.py` |
-| 1c      | Phasenübergreifendes Topic-Matching (Hybrid-Score) | `step01c_cross_phase_matching.py` |
-| 1d      | TEM-Robustheitsdiagnostik | `step01d_tem_robustness.py` |
+| 1b      | Phasenübergreifendes Topic-Matching (Hybrid-Score) | `step01b_cross_phase_matching.py` |
+| 1c      | TEM-Robustheitsdiagnostik | `step01c_tem_robustness.py` |
 | 2       | 16 Indikatoren über 5 Dimensionen | `step02_indicators.py` |
+| 2       | Membership-Scoring (kontinuierlich, Sigmoid) | `step02_memberships.py` |
 | 2b      | Zitations-Kohärenz ($\rho_t$) | `step02b_reference_overlap.py` |
-| 2b'     | Membership-Scoring (kontinuierlich, Sigmoid) | `step02b_memberships.py` |
+| 2c      | Citation-Topic-Profil (Macro/Meso/Micro, deskriptiv) | `step02c_citation_topic_profile.py` |
 | 3       | EFA (minres, Oblimin) — interne Strukturkohärenz; PCA nur als etikettierter Robustheitscheck | `step03_efa_pca.py` |
 | 3b      | Externe Konstruktvalidierung (RTW/CTW) | `step03b_external_validation.py` |
+| 3c      | Topic-Modell-Güte ($C_v$/$C_{\text{NPMI}}$/$C_{\text{UMass}}$, Diversität) | `step03c_topic_quality.py` |
 | 4       | Phaseninterne Visualisierungen | `step04_visualizations.py` |
-| 4c      | Cross-Phase-Visualisierungen | `step04c_cross_phase_viz.py` |
+| 4b      | Cross-Phase-Visualisierungen | `step04b_cross_phase_viz.py` |
 | 5       | OAT-Sensitivitätsanalyse ($k \times \lambda$-Grid) | `step05_sensitivity.py` |
+| 5b      | Sensitivitäts-Artefakte (Vorberechnung) | `step05b_artifacts.py` |
+| 5c      | Cross-Phase-Sensitivität (Hybrid-$\alpha_H$) | `step05c_cross_phase_sensitivity.py` |
 
 Die Wrapper `run_*.py` orchestrieren die Schritte phasen- und
 übergreifend. Die wesentlichen Einstiegspunkte:
@@ -71,7 +75,7 @@ python run_phase_sensitivity.py 1         # OAT-Sensitivität Phase 1
 ### Visualisierungs-Codierungen (Schritte 4 und 4c)
 
 Die phaseninternen und phasenübergreifenden Visualisierungen tragen die
-in `step02b_memberships.py` operativ verankerten Margin-Schwellen
+in `step02_memberships.py` operativ verankerten Margin-Schwellen
 ($\Delta = m_{(1)} - m_{(2)}$) als zusätzliche Codierungsebene:
 
 - **`dimension_heatmap.png`** — Topic-Labels enthalten `(Δ=...)` analog
@@ -164,15 +168,16 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 ├── prepare_kati_data.py
 ├── text_preprocessing.py
 ├── step01_topic_modeling.py
-├── step01c_cross_phase_matching.py
-├── step01d_tem_robustness.py
+├── step01b_cross_phase_matching.py
+├── step01c_tem_robustness.py
 ├── step02_indicators.py
-├── step02b_memberships.py
+├── step02_memberships.py
 ├── step02b_reference_overlap.py
+├── step02c_citation_topic_profile.py
 ├── step03_efa_pca.py
 ├── step03b_external_validation.py
 ├── step04_visualizations.py
-├── step04c_cross_phase_viz.py
+├── step04b_cross_phase_viz.py
 ├── step05_sensitivity.py
 ├── run_all.py
 ├── run_all_phases.py
@@ -183,10 +188,11 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 ├── run_phase_validation.py
 ├── run_phase_viz.py
 ├── run_phase_sensitivity.py
+├── run_step02c_phases.py
 ├── run_cross_phase_viz.py
-├── run_cross_phase_sensitivity.py
+├── step05c_cross_phase_sensitivity.py
 ├── run_sensitivity_hparam.py
-├── build_step5_artifacts.py
+├── step05b_artifacts.py
 ├── clean_pipeline_data.py
 ├── generate_synthetic_artifacts.py
 ├── rerender_loading_matrices.py

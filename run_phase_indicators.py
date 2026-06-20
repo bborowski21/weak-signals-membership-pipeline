@@ -88,13 +88,13 @@ def main() -> None:
     step02_indicators.PHASE_YEAR_MIN = year_min
     step02_indicators.PHASE_YEAR_MAX = year_max
 
-    import step02b_memberships
-    step02b_memberships.OUTPUT_DIR = output_dir
+    import step02_memberships
+    step02_memberships.OUTPUT_DIR = output_dir
 
     step02_indicators.run()
 
     print()
-    step02b_memberships.run()
+    step02_memberships.run()
 
     print()
     print("=" * 70)
