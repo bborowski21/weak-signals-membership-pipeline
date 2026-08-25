@@ -202,6 +202,7 @@ def write_report(
     threshold: float,
     out_dir: Path,
     sbert_active: bool,
+    sbert_requested: bool,
     alpha: float,
     topk: int,
 ) -> None:
@@ -238,8 +239,13 @@ def write_report(
     diag.append(f"alpha (Cosine-Gewicht): {alpha}")
     diag.append(f"top_k Keywords:         {topk}")
     diag.append(f"Konfidenzschwelle:      hybrid >= {threshold}")
-    diag.append(f"Cosine-Quelle:          "
-                f"{'SBERT-Centroid' if sbert_active else 'c-TF-IDF (Fallback)'}")
+    if sbert_active:
+        quelle = "SBERT-Centroid (Gl. 3.2)"
+    elif sbert_requested:
+        quelle = "c-TF-IDF (SBERT angefordert, Centroid-Laden fehlgeschlagen)"
+    else:
+        quelle = "c-TF-IDF (SBERT NICHT angefordert, kein Fallback)"
+    diag.append(f"Cosine-Quelle:          {quelle}")
     diag.append("")
     n_p1 = matches["phase1_topic"].nunique()
     n_p2 = matches["phase2_topic"].nunique()
@@ -318,12 +324,22 @@ def main() -> None:
     )
     sbert_active = scores.attrs.get("sbert_active", False)
 
+    if not sbert_active:
+        print()
+        print("  [WARNUNG] sigma_sem wird aus c-TF-IDF-Keyword-Vektoren gebildet, "
+              "nicht aus SBERT-Zentroiden.")
+        print("            Thesis Gl. 3.1/3.2 definiert sigma_sem ueber SBERT-Zentroide. "
+              "Fuer methodenkonforme")
+        print("            Laeufe --with-sbert setzen. Siehe CHANGELOG.md, Eintrag v2.3.")
+        print()
+
     matches = best_matches(scores)
     write_report(
         matches, p1_kw, p2_kw,
         threshold=args.threshold,
         out_dir=args.out_dir,
         sbert_active=sbert_active,
+        sbert_requested=args.with_sbert,
         alpha=args.alpha,
         topk=args.topk,
     )

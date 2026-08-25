@@ -704,8 +704,12 @@ def step05c_cross_phase_sensitivity(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\n=== SCHRITT 5 (Cross-Phase): Hybrid-α-Sensitivität ===")
+    # use_sbert explizit setzen, nicht auf den Default verlassen: step01b nutzt fuer
+    # denselben Parameter ein Opt-in-Flag mit Default False. Genau diese stille
+    # Abweichung liess Hauptlauf und Sensitivitaet auf verschiedenen Cosine-Quellen
+    # rechnen (siehe CHANGELOG.md, v2.3). sigma_sem ist laut Gl. 3.2 SBERT-basiert.
     df_alpha = hybrid_alpha_sensitivity_cross_phase(
-        phase1_dir=phase1_dir, phase2_dir=phase2_dir)
+        phase1_dir=phase1_dir, phase2_dir=phase2_dir, use_sbert=True)
     out_path = output_dir / "sensitivity_hybrid_alpha.csv"
     df_alpha.to_csv(out_path, index=False)
     print(f"  [step05x] Geschrieben: {out_path}")

@@ -43,6 +43,7 @@ htmlcov/
 output_phase1/
 output_phase2/
 output_cross_phase/
+output_cross_phase*/
 output_sensitivity/
 logs/
 *.log
