@@ -2,7 +2,7 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
-## v2.3 (unveröffentlicht)
+## v2.3
 
 ### Behoben: Cross-Phase-Matching lief auf einer anderen Cosine-Quelle als dokumentiert
 
@@ -51,11 +51,29 @@ Zitations-Kohärenz. Diese Schritte greifen nicht auf das Cross-Phase-Matching z
   ausgeschlossen bleiben. Zuvor griffen nur `*.csv` und `*.log`, sodass etwa
   `match_diagnostics.txt` aus einem solchen Ordner versehentlich eingecheckt werden konnte.
 
-**Offen.** Die Konfidenzschwelle von 0,25 ist auf der c-TF-IDF-Skala kalibriert, auf der 95 Prozent
-aller Topic-Paare einen Kosinus von exakt null tragen. Auf der SBERT-Skala liegt kein einziger
-Best-Match mehr darunter, obwohl der schlechteste Treffer inhaltlich falsch ist. Die Schwelle ist neu
-zu bestimmen, sinnvoll als empirisches Quantil statt als fester Wert. Bis dahin sind Aussagen über
-„unsichere Matches“ nur innerhalb einer Cosine-Quelle vergleichbar.
+**Konfidenzschwelle: ersatzlos gestrichen statt neu kalibriert.** Die Schwelle von 0,25 war auf der
+c-TF-IDF-Skala kalibriert, auf der 95 Prozent aller Topic-Paare einen Kosinus von exakt null tragen.
+Sie auf der SBERT-Skala neu zu bestimmen setzt voraus, dass ein niedriger Score auf einen falschen
+Match hindeutet. Das trifft nicht zu:
+
+- Unter den zehn schwächsten Zeilenmaxima auf der SBERT-Skala stehen fachlich korrekte Zuordnungen,
+  darunter P1#6 (berry phase) auf P2#9 (holonomic, nonadiabatic holonomic), P1#32 (hidden subgroup
+  problem) auf P2#135 (quantum query, boolean functions) und P1#41 (entanglement concentration) auf
+  P2#231 (entanglement witnesses). Ohne Fachurteil nachvollziehbar ist P1#103 (mutually unbiased,
+  specker, kochen) auf P2#212 (contextuality, contextual, ks): „ks“ steht für Kochen-Specker.
+- Der Margin, also der Abstand vom besten zum zweitbesten Treffer, trennt ebenfalls nicht.
+  Spearman gegen das Zeilenmaximum liegt bei 0,783, und die Wertebereiche der als richtig und als
+  falsch beurteilten Paare überlappen vollständig.
+
+Der Hybrid-Score misst Ähnlichkeit, nicht Korrektheit. Ein Maß je Match, das Konfidenz behauptet,
+ist deshalb nicht belegbar, unabhängig von seiner Berechnung. Die Diagnostik weist die Zahl unsicherer
+Matches weiterhin aus, aber als deskriptive Angabe zur gewählten Schwelle, nicht als Gütemaß.
+
+**Stattdessen: Auswertung auf der Zerlegung.** Die drei Cross-Phase-Signaturen sind in der
+Methodendokumentation auf dem Wertepaar aus semantischer und lexikalischer Ähnlichkeit definiert,
+nicht auf dem Hybrid-Score. Auf der c-TF-IDF-Skala ist die Concept-Drift-Zelle bei Terzilteilung
+leer (0 von 99 Mutual-Paaren), auf der SBERT-Skala besetzt (4 von 101; bei Mediansplit 3 gegen 7).
+Die Signaturschicht wird erst auf dem methodenkonformen Repräsentationsraum auswertbar.
 
 **Hinweis zur Reproduzierbarkeit.** Tag `v2.2` bleibt unverändert der Stand, auf dem die Masterarbeit
 beruht, einschließlich des dort verwendeten Aufrufs ohne `--with-sbert`. Wer die Zahlen der Arbeit
