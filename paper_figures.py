@@ -781,7 +781,7 @@ def fig_signature_scatter(cross: dict) -> None:
     other = ~(stable | drift | ec_pre)
     ax.scatter(x[other], y[other], s=46, c="#8395a7", alpha=0.75,
                edgecolors="white", linewidths=0.5, zorder=3,
-               label="Mutual-best match")
+               label=f"Outside signature zones ($n$ = {other.sum()})")
     ax.scatter(x[stable], y[stable], s=52, c="#3498DB", alpha=0.85,
                edgecolors="white", linewidths=0.5, zorder=3,
                label=f"Stable core and vocabulary ($n$ = {stable.sum()})")
