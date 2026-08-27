@@ -4,6 +4,19 @@
 
 ## Unveröffentlicht
 
+### Hinzugefügt
+
+- `paper_figures.py`: eigenständige Publikationsfassung aller Abbildungen als Kopie neben der
+  Pipeline. Liest ausschließlich vorhandene Artefakte (output_phase1/2, output_cross_phase) und
+  schreibt nach `figures_paper/` (gitignored) PNG 300 dpi plus Vektor-PDF. Designlinie wie das
+  überarbeitete Sankey: englische Beschriftung (Dimensionsnamen provisorisch, finale Terminologie
+  beim Kick-off), keine eingebetteten Titel, keine Em-Dashes, Low-n-Dämpfung in der
+  Shift-Heatmap (Zellen mit n < 3 grau). Neu darin: `signature_scatter`, die drei
+  Cross-Phase-Signaturen aus Thesis-Abschnitt 3.3 auf der Zerlegung (σ_sem, σ_lex) mit
+  empirischen Terzilgrenzen (hoch: ≥ oberes Terzil, niedrig: strikt < unteres Terzil; auf den
+  101 SBERT-Paaren: stabil 17, Concept Drift 4, semantisch instabil 34). Die Pipeline-Skripte
+  selbst bleiben unverändert.
+
 ### Geändert
 
 - `plot_migration_sankey` in `step04b_cross_phase_viz.py` durch eine Publikationsfassung ersetzt.
