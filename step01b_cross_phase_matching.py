@@ -157,7 +157,8 @@ def compute_pairwise_scores(
             print(f"  Centroid-Shape Phase 2: {cen2.shape}  "
                   f"(Null-Centroide: {n_zero2})")
         else:
-            print("[info] SBERT-Centroide nicht verfügbar, Fallback c-TF-IDF.")
+            print("[WARNUNG] SBERT angefordert, Centroide nicht ladbar: Fallback c-TF-IDF. "
+                  "Ausgaben tragen cosine_source=ctfidf.")
 
     p1_sets = {t: set(g["keyword"])
                for t, g in p1_kw.groupby("topic")}
@@ -176,6 +177,10 @@ def compute_pairwise_scores(
     out = pd.DataFrame(rows, columns=[
         "phase1_topic", "phase2_topic", "cosine", "jaccard", "hybrid",
     ])
+    # Provenienz der Cosine-Quelle in den Artefakten selbst persistieren, damit
+    # Ausgaben beider Nutzungsmodi (Thesis-Reproduktion ohne Flag, methodenkonform
+    # mit --with-sbert) auch nach dem Lauf unterscheidbar bleiben (v2.3.1).
+    out["cosine_source"] = "sbert_centroid" if sbert_active else "ctfidf"
     out.attrs["sbert_active"] = sbert_active
     return out
 
@@ -238,7 +243,7 @@ def write_report(
     diag.append("=" * 60)
     diag.append(f"alpha (Cosine-Gewicht): {alpha}")
     diag.append(f"top_k Keywords:         {topk}")
-    diag.append(f"Konfidenzschwelle:      hybrid >= {threshold}")
+    diag.append(f"Score-Schwelle (deskriptiv): hybrid >= {threshold}")
     if sbert_active:
         quelle = "SBERT-Centroid (Gl. 3.2)"
     elif sbert_requested:
@@ -261,7 +266,8 @@ def write_report(
     diag.append("")
 
     n_low = (best_p1["hybrid"] < threshold).sum()
-    diag.append(f"Unsichere Matches (hybrid < {threshold}): {n_low} / {len(best_p1)}")
+    diag.append(f"Matches unter Score-Schwelle {threshold} (Review-Kandidaten): "
+                f"{n_low} / {len(best_p1)}")
     diag.append("")
     diag.append("Top-10 sicherste Mutual-Best Paare:")
     for _, r in mutual.nlargest(10, "hybrid").iterrows():
@@ -272,7 +278,7 @@ def write_report(
             f"jac={r['jaccard']:.3f})"
         )
     diag.append("")
-    diag.append("Top-10 unsicherste Best-P1→P2 (Review-Kandidaten):")
+    diag.append("Top-10 schwächste Best-P1→P2 (Review-Kandidaten):")
     for _, r in best_p1.nsmallest(10, "hybrid").iterrows():
         diag.append(
             f"  P1#{int(r['phase1_topic']):>3d} [{r['phase1_keywords']}]  "
@@ -296,7 +302,7 @@ def main() -> None:
     parser.add_argument("--topk", type=int, default=DEFAULT_TOPK,
                         help="Top-K Keywords pro Topic (default 15)")
     parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD,
-                        help="Hybrid-Score-Schwelle für 'sichere' Matches")
+                        help="deskriptive Score-Schwelle für den Diagnostikbericht")
     parser.add_argument("--with-sbert", action="store_true",
                         help="SBERT-Centroid-Cosine aus model_results.pkl verwenden")
     args = parser.parse_args()

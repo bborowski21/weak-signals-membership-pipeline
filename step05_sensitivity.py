@@ -638,6 +638,8 @@ def hybrid_alpha_sensitivity_cross_phase(
         use_sbert=use_sbert, p1_dir=phase1_dir, p2_dir=phase2_dir,
     )
     base_matches = best_matches(base_scores)
+    cosine_source = ("sbert_centroid" if base_scores.attrs.get("sbert_active")
+                     else "ctfidf")
     base_mutual = set(
         tuple(r) for r in base_matches[base_matches["mutual_best"]][
             ["phase1_topic", "phase2_topic"]].itertuples(index=False, name=None)
@@ -691,6 +693,7 @@ def hybrid_alpha_sensitivity_cross_phase(
             "mean_hybrid_mutual": float(mutual_hyb.mean()) if len(mutual_hyb) else np.nan,
             "median_hybrid_mutual": float(mutual_hyb.median()) if len(mutual_hyb) else np.nan,
             "n_unsicher_mutual_lt_0_25": n_unsicher,
+            "cosine_source": cosine_source,
         })
 
     return pd.DataFrame(records)

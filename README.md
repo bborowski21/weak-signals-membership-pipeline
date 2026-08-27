@@ -72,6 +72,20 @@ python run_cross_phase_viz.py             # Cross-Phase: Sankey, Shift-Heatmap, 
 python run_phase_sensitivity.py 1         # OAT-Sensitivität Phase 1
 ```
 
+### Zwei Betriebsmodi des Cross-Phase-Matchings
+
+`step01b_cross_phase_matching.py` kennt zwei Cosine-Quellen, und seit v2.3.1
+sind beide an den Artefakten selbst ablesbar (Spalte `cosine_source` in den
+`topic_matches`-CSVs sowie in `sensitivity_hybrid_alpha.csv`):
+
+| Modus | Aufruf | Cosine-Quelle | Zweck |
+|---|---|---|---|
+| methodenkonform | `--with-sbert` (Standard über `run_all_phases.py`) | SBERT-Topic-Zentroide (Gl. 3.2 der Arbeit) | Weiterentwicklung, Paper |
+| Thesis-Reproduktion | ohne Flag | c-TF-IDF-Keyword-Vektoren | exakte Reproduktion der in der Masterarbeit berichteten Zahlen (Tag `v2.2`) |
+
+Hintergrund und Zahlenvergleich beider Modi: `CHANGELOG.md`, Einträge v2.3
+und v2.3.1.
+
 ### Visualisierungs-Codierungen (Schritte 4 und 4c)
 
 Die phaseninternen und phasenübergreifenden Visualisierungen tragen die
@@ -149,8 +163,12 @@ SBERT_MODEL              = "all-MiniLM-L6-v2"
 HDBSCAN_MIN_CLUSTER_SIZE = 25
 MEMBERSHIP_SIGMOID_K     = 1.0    # Trennschärfe-Parameter (V2)
 MEMBERSHIP_LAMBDA_WP     = 0.5    # WP-Gewichtung in m_trend (V2)
-HYBRID_ALPHA             = 0.6    # Cosine-Anteil im Hybrid-Score
+SENSITIVITY_HYBRID_ALPHA_GRID = [0.4, 0.6, 0.8]  # alpha-Grid der Cross-Phase-Sensitivitaet
 ```
+
+Das Cosine-Gewicht des Hybrid-Scores selbst ist kein `config.py`-Parameter,
+sondern liegt als `DEFAULT_ALPHA = 0.6` in `step01b_cross_phase_matching.py`
+und ist dort über `--alpha` einstellbar.
 
 Die Sensitivitätsanalyse (`step05`) variiert diese Parameter über
 ein zweidimensionales $k \times \lambda$-Grid; Design und Ergebnisse

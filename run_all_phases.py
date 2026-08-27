@@ -34,7 +34,7 @@ def build_steps(only_phase: int | None = None,
         steps.append((
             "1b",
             "Cross-Phase-Matching",
-            [PYTHON, "step01b_cross_phase_matching.py"],
+            [PYTHON, "step01b_cross_phase_matching.py", "--with-sbert"],
         ))
 
     add_phase_step("2", "Indikatoren + Memberships", "run_phase_indicators.py")
