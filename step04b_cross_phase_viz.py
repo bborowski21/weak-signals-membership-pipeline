@@ -86,14 +86,19 @@ def _load_matches(prefer_mutual: bool = True) -> pd.DataFrame:
 
 
 
-def _bezier_ribbon(ax, x0, y0_top, y0_bot, x1, y1_top, y1_bot,
-                   color, alpha, hatch=None):
-    mid = (x0 + x1) / 2.0
+PHASE1_LABEL = "Phase 1\n2000\u20132015"
+PHASE2_LABEL = "Phase 2\n2016\u20132025"
+
+
+def _ribbon_path(x0, y0_top, y0_bot, x1, y1_top, y1_bot, c=0.5):
+    """Geschlossener Pfad eines S-foermigen Bandes (kubische Bezier)."""
+    cx0 = x0 + c * (x1 - x0)
+    cx1 = x1 - c * (x1 - x0)
     verts = [
         (x0, y0_top),
-        (mid, y0_top), (mid, y1_top), (x1, y1_top),
+        (cx0, y0_top), (cx1, y1_top), (x1, y1_top),
         (x1, y1_bot),
-        (mid, y1_bot), (mid, y0_bot), (x0, y0_bot),
+        (cx1, y1_bot), (cx0, y0_bot), (x0, y0_bot),
         (x0, y0_top),
     ]
     codes = [
@@ -103,22 +108,26 @@ def _bezier_ribbon(ax, x0, y0_top, y0_bot, x1, y1_top, y1_bot,
         Path.CURVE4, Path.CURVE4, Path.CURVE4,
         Path.CLOSEPOLY,
     ]
-    if hatch is None:
-        patch = mpatches.PathPatch(
-            Path(verts, codes),
-            facecolor=color, edgecolor="none", alpha=alpha,
-        )
-    else:
-        patch = mpatches.PathPatch(
-            Path(verts, codes),
-            facecolor=color, edgecolor="white", alpha=alpha,
-            hatch=hatch, linewidth=0.0,
-        )
-    ax.add_patch(patch)
+    return Path(verts, codes)
 
 
 def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
                           matches: pd.DataFrame, output_path) -> dict:
+    """Publikationsfassung des Migrations-Sankeys.
+
+    Designentscheidungen (gegenueber der Altfassung):
+    - Ein Band je Klassenpaar (aggregiert) statt zwei Baendern je Paar;
+      die klar/knapp-Zaehlung (Margin < 0.10) bleibt im Rueckgabewert
+      und im stdout-Bericht erhalten, wird aber nicht mehr gehatcht.
+    - Kein Alpha-Encoding nach Match-Cosine: auf der SBERT-Skala liegen
+      alle Cosines eng beieinander, das Encoding traegt nichts.
+    - Quellseitige Stapelung nach Zielklasse, zielseitige nach Quellklasse
+      (zwei getrennte Passes) -> minimale Kreuzungen ohne Interleaving.
+    - Knotenhoehe entspricht exakt der Summe der Bandhoehen.
+    - Beschriftung englisch, kein eingebetteter Titel (gehoert in die
+      Bildunterschrift des Papers); n an Knoten und an Baendern >= 3.
+    - Speichert PNG (FIG_DPI) und PDF (Vektor).
+    """
     m = matches.copy()
     m["p1_class"] = m["phase1_topic"].map(df_p1["signal_type"])
     m["p2_class"] = m["phase2_topic"].map(df_p2["signal_type"])
@@ -140,143 +149,119 @@ def plot_migration_sankey(df_p1: pd.DataFrame, df_p2: pd.DataFrame,
     cell["n_clear"] = cell["count"] - cell["n_knapp"]
 
     cls = SIGNAL_ORDER
-    n_classes = len(cls)
+    idx = {c: i for i, c in enumerate(cls)}
+    cell["i"] = cell["p1_class"].map(idx)
+    cell["j"] = cell["p2_class"].map(idx)
 
-    p1_totals = m.groupby("p1_class")["phase1_topic"].size().reindex(cls, fill_value=0)
-    p2_totals = m.groupby("p2_class")["phase2_topic"].size().reindex(cls, fill_value=0)
-    total = max(p1_totals.sum(), p2_totals.sum(), 1)
+    p1_totals = m.groupby("p1_class").size().reindex(cls, fill_value=0)
+    p2_totals = m.groupby("p2_class").size().reindex(cls, fill_value=0)
+    total = max(int(p1_totals.sum()), int(p2_totals.sum()), 1)
 
-    n_cls = len(cls)
-    gap = 0.03
-    usable_height = 1.0 - gap * (n_cls - 1)
-    height_p1 = (p1_totals / total).values * usable_height
-    height_p2 = (p2_totals / total).values * usable_height
+    gap = 0.035
+    usable = 1.0 - gap * (len(cls) - 1)
+    h1 = (p1_totals / total).values * usable
+    h2 = (p2_totals / total).values * usable
 
     def _stack(heights):
-        out = []
-        cursor = 1.0
+        out, cursor = [], 1.0
         for h in heights:
-            top = cursor
-            bot = cursor - h
-            out.append((top, bot))
-            cursor = bot - gap
+            out.append((cursor, cursor - h))
+            cursor -= h + gap
         return out
 
-    p1_stack = _stack(height_p1)
-    p2_stack = _stack(height_p2)
+    p1_stack = _stack(h1)
+    p2_stack = _stack(h2)
 
-    p1_cursor = [t for (t, _) in p1_stack]
-    p2_cursor = [t for (t, _) in p2_stack]
+    # Bandpositionen: Quellseite nach Zielklasse geordnet, Zielseite nach
+    # Quellklasse geordnet -> zwei getrennte Passes, minimale Kreuzungen.
+    unit = usable / total
+    src_pos, cur = {}, [t for (t, _) in p1_stack]
+    for _, r in cell.sort_values(["i", "j"]).iterrows():
+        h = r["count"] * unit
+        i = int(r["i"])
+        src_pos[(r["i"], r["j"])] = (cur[i], cur[i] - h)
+        cur[i] -= h
+    tgt_pos, cur = {}, [t for (t, _) in p2_stack]
+    for _, r in cell.sort_values(["j", "i"]).iterrows():
+        h = r["count"] * unit
+        j = int(r["j"])
+        tgt_pos[(r["i"], r["j"])] = (cur[j], cur[j] - h)
+        cur[j] -= h
 
-    cell["i"] = cell["p1_class"].map({c: i for i, c in enumerate(cls)})
-    cell["j"] = cell["p2_class"].map({c: i for i, c in enumerate(cls)})
-    cell = cell.sort_values(["i", "count"], ascending=[True, False])
+    fig, ax = plt.subplots(1, 1, figsize=(13.2, 7.0))
+    x_left, x_right, box_w = 0.115, 0.885, 0.030
 
-    fig, ax = plt.subplots(1, 1, figsize=(14, 8))
-    x_left = 0.05
-    x_right = 0.95
-    box_w = 0.04
+    # Baender: grosse zuerst, kleine zuletzt (bleiben sichtbar)
+    for _, r in cell.sort_values("count", ascending=False).iterrows():
+        key = (r["i"], r["j"])
+        y0t, y0b = src_pos[key]
+        y1t, y1b = tgt_pos[key]
+        color = SIGNAL_COLORS.get(r["p1_class"], "#999999")
+        patch = mpatches.PathPatch(
+            _ribbon_path(x_left, y0t, y0b, x_right, y1t, y1b),
+            facecolor=color, alpha=0.62, edgecolor="white",
+            linewidth=0.7, zorder=2,
+        )
+        ax.add_patch(patch)
 
-    for i, (top, bot) in enumerate(p1_stack):
-        cls_name = cls[i]
-        color = SIGNAL_COLORS.get(cls_name, "#999999")
-        ax.add_patch(mpatches.Rectangle(
-            (x_left - box_w, bot), box_w, top - bot,
-            facecolor=color, edgecolor="white", linewidth=0.8,
-        ))
-        n = int(p1_totals.iloc[i])
-        ax.text(x_left - box_w - 0.01, (top + bot) / 2.0,
-                f"{cls_name}\n(n={n})", ha="right", va="center",
-                fontsize=11, fontweight="bold")
+    # Band-Beschriftung (n) an beiden Enden, nur wenn hoch genug
+    for _, r in cell.iterrows():
+        if r["count"] >= 3:
+            y0t, y0b = src_pos[(r["i"], r["j"])]
+            ax.text(x_left + 0.012, (y0t + y0b) / 2.0, str(int(r["count"])),
+                    ha="left", va="center", fontsize=9.5,
+                    color="#333333", zorder=4)
+            y1t, y1b = tgt_pos[(r["i"], r["j"])]
+            ax.text(x_right - 0.012, (y1t + y1b) / 2.0, str(int(r["count"])),
+                    ha="right", va="center", fontsize=9.5,
+                    color="#333333", zorder=4)
 
-    for j, (top, bot) in enumerate(p2_stack):
-        cls_name = cls[j]
-        color = SIGNAL_COLORS.get(cls_name, "#999999")
-        ax.add_patch(mpatches.Rectangle(
-            (x_right, bot), box_w, top - bot,
-            facecolor=color, edgecolor="white", linewidth=0.8,
-        ))
-        n = int(p2_totals.iloc[j])
-        ax.text(x_right + box_w + 0.01, (top + bot) / 2.0,
-                f"{cls_name}\n(n={n})", ha="left", va="center",
-                fontsize=11, fontweight="bold")
+    # Knoten + Labels
+    for side, stack, totals, x, ha, dx in (
+        ("p1", p1_stack, p1_totals, x_left - box_w, "right", -0.012),
+        ("p2", p2_stack, p2_totals, x_right, "left", box_w + 0.012),
+    ):
+        for k, (top, bot) in enumerate(stack):
+            name = cls[k]
+            color = SIGNAL_COLORS.get(name, "#999999")
+            ax.add_patch(mpatches.Rectangle(
+                (x, bot), box_w, top - bot,
+                facecolor=color, edgecolor="none", zorder=3,
+            ))
+            n = int(totals.iloc[k])
+            ax.text(x + dx, (top + bot) / 2.0,
+                    f"{name}\n$n$ = {n}", ha=ha, va="center",
+                    fontsize=11, fontweight="bold", color="#222222",
+                    linespacing=1.25)
 
-    for _, row in cell.iterrows():
-        i, j = int(row["i"]), int(row["j"])
-        n_clear = int(row["n_clear"])
-        n_knapp = int(row["n_knapp"])
-        color = SIGNAL_COLORS.get(row["p1_class"], "#999999")
-        cos = float(row["mean_cos"]) if not pd.isna(row["mean_cos"]) else 0.5
-        alpha = 0.30 + 0.55 * np.clip(cos, 0.0, 1.0)
-
-        if n_clear > 0:
-            h_clear = n_clear / total
-            y0_top = p1_cursor[i]
-            y0_bot = y0_top - h_clear
-            p1_cursor[i] = y0_bot
-            y1_top = p2_cursor[j]
-            y1_bot = y1_top - h_clear
-            p2_cursor[j] = y1_bot
-            _bezier_ribbon(ax, x_left, y0_top, y0_bot,
-                           x_right, y1_top, y1_bot,
-                           color, alpha)
-
-        if n_knapp > 0:
-            h_knapp = n_knapp / total
-            y0_top = p1_cursor[i]
-            y0_bot = y0_top - h_knapp
-            p1_cursor[i] = y0_bot
-            y1_top = p2_cursor[j]
-            y1_bot = y1_top - h_knapp
-            p2_cursor[j] = y1_bot
-            _bezier_ribbon(ax, x_left, y0_top, y0_bot,
-                           x_right, y1_top, y1_bot,
-                           color, alpha, hatch="//")
+    ax.text(x_left - box_w / 2.0, 1.045, PHASE1_LABEL, ha="center",
+            va="bottom", fontsize=11.5, fontweight="bold", color="#222222")
+    ax.text(x_right + box_w / 2.0, 1.045, PHASE2_LABEL, ha="center",
+            va="bottom", fontsize=11.5, fontweight="bold", color="#222222")
 
     ax.set_xlim(0, 1)
-    ax.set_ylim(-0.10, 1.10)
-    ax.set_aspect("auto")
+    ax.set_ylim(-0.015, 1.135)
     ax.axis("off")
+    fig.subplots_adjust(left=0.005, right=0.995, top=0.995, bottom=0.005)
+
+    out = str(output_path)
+    plt.savefig(out, dpi=FIG_DPI, bbox_inches="tight")
+    pdf = out[:-4] + ".pdf" if out.lower().endswith(".png") else out + ".pdf"
+    plt.savefig(pdf, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Sankey gespeichert: {output_path} (+ PDF)")
+
     n_total_knapp = int(m["is_knapp"].sum())
     n_total_clear = int(len(m) - n_total_knapp)
-    ax.set_title(
-        f"Membership-Migrations-Sankey: Phase 1 -> Phase 2\n"
-        f"({len(m)} gematchte Topics; Alpha ~ Match-Cosine; "
-        f"Hatch ~ knappe Migration, Margin < 0.10 in P1 oder P2)",
-        fontsize=14, pad=16,
-    )
-    ax.text(x_left - box_w / 2.0, 1.06, "Phase 1\n(2000-2015)",
-            ha="center", va="bottom", fontsize=11, fontweight="bold")
-    ax.text(x_right + box_w / 2.0, 1.06, "Phase 2\n(2016-2025)",
-            ha="center", va="bottom", fontsize=11, fontweight="bold")
-
-    legend_clear = mpatches.Patch(
-        facecolor="#888888", alpha=0.6, edgecolor="none",
-        label=f"Klare Migration (Margin ≥ 0.10 in beiden Phasen): "
-              f"n={n_total_clear}",
-    )
-    legend_knapp = mpatches.Patch(
-        facecolor="#888888", alpha=0.6, edgecolor="white", hatch="//",
-        label=f"Knappe Migration (Margin < 0.10 in P1 oder P2): "
-              f"n={n_total_knapp}",
-    )
-    ax.legend(
-        handles=[legend_clear, legend_knapp],
-        loc="lower center", bbox_to_anchor=(0.5, -0.06),
-        ncol=2, fontsize=10, frameon=False,
-    )
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=FIG_DPI, bbox_inches="tight")
-    plt.close()
-    print(f"  Sankey gespeichert: {output_path}")
+    print(f"  Matches: {len(m)} | klar (Margin >= 0.10 beidseitig): "
+          f"{n_total_clear} | knapp (Margin < 0.10 in P1 oder P2): "
+          f"{n_total_knapp}")
     return {
         "n_matches": int(len(m)),
         "n_clear": n_total_clear,
         "n_knapp": n_total_knapp,
-        "cells": cell.to_dict(orient="records"),
+        "cells": cell.drop(columns=["i", "j"]).to_dict(orient="records"),
     }
-
 
 
 def plot_membership_shift_heatmap(df_p1: pd.DataFrame, df_p2: pd.DataFrame,

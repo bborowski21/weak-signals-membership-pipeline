@@ -2,6 +2,23 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
+## Unveröffentlicht
+
+### Geändert
+
+- `plot_migration_sankey` in `step04b_cross_phase_viz.py` durch eine Publikationsfassung ersetzt.
+  Vorher: zwei Bänder je Klassenpaar (klar + schraffiert „knapp“), Deckkraft je Band nach
+  Match-Cosine, quellseitige Stapelung nach Bandgröße. Bei 73 von 101 knappen Migrationen
+  dominierte die Schraffur, das Cosine-Encoding ist auf der SBERT-Skala uninformativ, und die
+  Stapelung erzeugte Kreuzungen direkt am Knoten. Jetzt: ein aggregiertes Band je Klassenpaar,
+  Stapelung quellseitig nach Zielklasse und zielseitig nach Quellklasse (minimale Kreuzungen),
+  einheitliche Deckkraft mit weißen Trennkanten, n an Knoten und an Bändern ab n = 3 (beide
+  Enden), englische Beschriftung ohne eingebetteten Titel, zusätzlich Vektor-PDF
+  (`migration_sankey.pdf`). Die klar/knapp-Zählung (Margin < 0.10) bleibt in stdout-Bericht und
+  Rückgabewert erhalten. Matching und Zahlen unverändert; die Migrationsmatrix wurde unabhängig
+  gegen `topic_matches_mutual.csv` und `signal_memberships.csv` verifiziert (Zeilensummen
+  30/32/12/27, Spaltensummen 23/10/18/50, Diagonale 38/101).
+
 ## v2.3.1
 
 Patch auf v2.3. Eine erneute Prüfung hat gezeigt, dass v2.3 die Abweichung dokumentiert, sie in
