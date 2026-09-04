@@ -17,6 +17,38 @@
   101 SBERT-Paaren: stabil 17, Concept Drift 4, semantisch instabil 34). Die Pipeline-Skripte
   selbst bleiben unverändert.
 
+
+- **Abbildungssatz für die Zeitschrifteneinreichung**: `rp_style.py` (Stilmodul) und
+  `paper_figures_rp.py` (22 Abbildungen plus drei Parkplatz-Abbildungen). Eigenständige Fassung
+  neben `paper_figures.py`; die Pipeline-Skripte bleiben unverändert. Zielbreiten 90 / 140 / 190 mm,
+  Export je Abbildung als Vektor-PDF mit eingebetteter Schrift, TIFF (RGB, LZW, 600 dpi), PNG
+  (Sichtprobe, 300 dpi) und Graustufenprobe, dazu `manifest.csv` und `palette.json`. Vier
+  Klassenfarben mit Zweitkodierung über Marker, Linientyp und Schraffur, damit Farbe nie
+  alleiniger Informationsträger ist; Phasenvergleiche monochrom. Schreibt nach `figures_rp/`
+  (gitignored).
+- **Robustheitsexperimente** als eigenständige Skripte, alle drei lesen ausschließlich abgeleitete
+  Artefakte aus `output_phase1/` und `output_phase2/` und rechnen mit dem unveränderten
+  Pipeline-Code (`step02_indicators.compute_dimension_scores`, `step02_memberships.compute_memberships`):
+  - `perturbation_experiment.py`: additives Normalrauschen je Indikator mit Standardabweichung
+    s · SD_j, Stufen s = 2 / 5 / 10 / 20 Prozent, 1.000 Replikate je Stufe und Phase, Seed 20260903.
+    Kennzahlen: Kipprate des Argmax gesamt, je Margin-Klasse und je Baseline-Konfiguration,
+    Übergangsmatrix, Kippwahrscheinlichkeit und häufigste Ausweichklasse je Topic, mittlere
+    absolute Membership-Verschiebung, Spearman je Membership. Bei 10 Prozent Rauschen kippt die
+    dominante Konfiguration in 6,9 Prozent (Phase 1) und 7,3 Prozent (Phase 2) der
+    Topic-Replikat-Paare; kein Topic mit Margin ≥ 0,10 kippt in Phase 1.
+  - `nullmodel_experiment.py`: zwei Nullmodelle mit exakt erhaltener Randverteilung jedes
+    Indikators. N1 permutiert jede der 16 Indikatorspalten unabhängig, N2 verschiebt alle
+    Indikatoren einer Dimension mit derselben Permutation. 1.000 Replikate, Seed 20260904.
+    Kennzahlen unter anderem mittlere Within-Dimension-Korrelation (real 0,227 und 0,223 gegen
+    0,066 und 0,049 permutiert) und die Korrelation zwischen Weak-Signal- und
+    Emerging-Concept-Membership.
+  - `standardisation_variants.py`: Vergleich dreier Standardisierungsvarianten der 16 Indikatoren
+    (Code-Referenz, robust-z vor der Dimensionsaggregation, robust-z ohne zweite Standardisierung).
+    Die Argmax-Übereinstimmung mit der Referenz liegt bei 86,3 und 84,2 Prozent.
+- `build_supplement.py`: erzeugt die Supplement-Tabellen S1 bis S4 (Indikatorkorrelationen je
+  Phase, Dimensionsscores, Memberships, Indikatorwerte) nach `supplement_rp/` (gitignored).
+  Enthält ausschließlich abgeleitete Größen, keine Rohdaten und keine bibliographischen Angaben.
+
 ### Geändert
 
 - `plot_migration_sankey` in `step04b_cross_phase_viz.py` durch eine Publikationsfassung ersetzt.
@@ -31,6 +63,9 @@
   Rückgabewert erhalten. Matching und Zahlen unverändert; die Migrationsmatrix wurde unabhängig
   gegen `topic_matches_mutual.csv` und `signal_memberships.csv` verifiziert (Zeilensummen
   30/32/12/27, Spaltensummen 23/10/18/50, Diagonale 38/101).
+
+- `.gitignore`: `figures_rp/` und `supplement_rp/` ergänzt, damit die generierten Abbildungs- und
+  Supplement-Artefakte lokal bleiben.
 
 ## v2.3.1
 
