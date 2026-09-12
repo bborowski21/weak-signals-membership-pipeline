@@ -688,8 +688,8 @@ def figA8_ws_detail_radars(data: dict, ph: int, n_top: int = 6) -> None:
 
 
 def figA9_structure_compare(data: dict, q: float = 0.90) -> None:
-    labels = RADAR_LABELS_NARROW
-    fig, ax = rp.figure("single", height_mm=90, polar=True)
+    labels = RADAR_LABELS
+    fig, ax = rp.figure("mid", height_mm=110, polar=True)
     ang = radar_axes(ax, labels, rmin=-0.4, rmax=1.0, label_pad=4)
     a = closed(ang)
 
@@ -716,8 +716,8 @@ def figA9_structure_compare(data: dict, q: float = 0.90) -> None:
           Line2D([0], [0], color=rp.TEXT_MUTED, lw=1.0, ls=":", marker="o", markersize=2.4,
                  markerfacecolor="white", label="Median")]
     ax.legend(handles=hs, loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=2, columnspacing=1.0)
-    fig.subplots_adjust(left=0.22, right=0.78, top=0.95, bottom=0.24)
-    rp.save(fig, "FigA9_structure_compare_phases", "single", OUT_DIR)
+    fig.subplots_adjust(left=0.22, right=0.78, top=0.90, bottom=0.24)
+    rp.save(fig, "FigA9_structure_compare_phases", "mid", OUT_DIR)
 
 
 def figA10_topic_quality() -> None:
