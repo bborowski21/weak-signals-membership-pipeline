@@ -13,25 +13,42 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 
 ## Zitation
 
-Wenn dieser Code in akademischen Arbeiten verwendet wird, bitte zitieren als:
+Das Repositorium ist über zwei Stände zitierbar. Die Masterarbeit
+referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript den
+Stand `v2.3.1`. Beide liegen unter derselben Concept-DOI
+[10.5281/zenodo.20283613](https://doi.org/10.5281/zenodo.20283613), die stets
+auf die jeweils neueste Version auflöst; das Badge oben zeigt diese
+Concept-DOI. Die versionsgenauen DOIs stehen auf der Zenodo-Seite unter
+*Versions*.
 
-> Borowski, Ben-Nicholas (2026). *F3-Pipeline: Membership-Scoring zur Detektion
-> von Weak Signals* (Version v2.2) [Software]. Zenodo.
-> https://doi.org/10.5281/zenodo.20283613
+Für den Stand `v2.3.1` (Manuskript) bitte zitieren als:
 
-BibTeX:
+> Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
+> model, sixteen indicators and four configurational memberships*
+> (Version v2.3.1) [Software]. Zenodo.
+> https://doi.org/10.5281/zenodo.22128929
+
+BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
+verlangt es klassisches BibTeX; unter biblatex kann er auf `software`
+geändert werden.
 
 ```bibtex
-@software{borowski_pipeline_2026,
+@misc{borowski_weak_2026,
   author    = {Borowski, Ben-Nicholas},
-  title     = {F3-Pipeline: Membership-Scoring zur Detektion von Weak Signals},
-  version   = {v2.2},
+  title     = {Weak-signal membership pipeline: topic model, sixteen indicators
+               and four configurational memberships},
+  version   = {v2.3.1},
   year      = {2026},
+  month     = aug,
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.20283613},
-  url       = {https://doi.org/10.5281/zenodo.20283613}
+  doi       = {10.5281/zenodo.22128929},
+  url       = {https://doi.org/10.5281/zenodo.22128929}
 }
 ```
+
+Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
+`version = {v2.2}`, dem deutschen Titel des damaligen Deposits und der
+zugehörigen Versions-DOI.
 
 ## Architektur
 
@@ -221,6 +238,8 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
 über das Git-Tag `v2.2` fixiert und besitzt eine eigene Zenodo-DOI.
+Das daraus hervorgegangene Manuskript referenziert `v2.3.1`, ebenfalls
+mit eigener Zenodo-DOI. Beide Tags bleiben unverändert bestehen.
 v2.2 vereinheitlicht die Step-Benennung auf ein durchgängig
 sequenzielles Schema und ergänzt das Diagnostikmodul
 `step02c_citation_topic_profile.py` (deskriptive Citation-Topic-
