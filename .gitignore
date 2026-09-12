@@ -83,3 +83,18 @@ figures_ws/
 figures_paper/
 figures_rp/
 supplement_rp/
+
+# --- Pipeline-Outputs, allgemein (ergaenzt 12.09.2026) ---------------------
+# Ersetzt die Einzelnennungen weiter oben: Jeder neue output_-Ordner ist damit
+# von vornherein erfasst. Bewusst mit Stern und nicht als Ordner geschrieben,
+# denn in ein ausgeschlossenes Verzeichnis steigt git nicht hinein und die
+# Ausnahme darunter griffe nicht.
+output_*/*
+
+# Belegt die Phasengrenzen-Zeile in Supplement-Tabelle S6 und Abbildung S16 und
+# gehoert deshalb als einziger Output ins Repo.
+!output_phase_boundary/phase_boundary_stability.json
+
+# Erfasst war bisher nur *.npz. Die Label-Arrays sind dokumentweise
+# Clusterzuordnungen und bleiben wie topic_assignments.csv lokal.
+*.npy
