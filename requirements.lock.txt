@@ -1,0 +1,88 @@
+# Eingefrorene Laufumgebung der F3-Pipeline
+#
+# Erzeugt am 12.09.2026 aus den Metadaten des venv, das den berichteten Lauf
+# vom 21.05.2026 gerechnet hat (siehe logs/run_full_20260521_214136.log).
+# Python 3.12, macOS arm64.
+#
+# Wiederherstellen:
+#     python3.12 -m venv .venv && . .venv/bin/activate
+#     pip install -r requirements.lock.txt
+#
+# WICHTIG, damit diese Datei nicht mehr verspricht als sie haelt:
+# Sie bildet den Stand von HEUTE ab, nicht zwingend den vom 21.05.2026.
+# Nach dem Referenzlauf angefasst wurden genau 3 Distributionen:
+#     wrapt==2.2.1   (installiert 2026-06-05)
+#     gensim==4.4.0   (installiert 2026-06-05)
+#     smart_open==7.6.1   (installiert 2026-06-05)
+# Alle drei gehoeren zum gensim-Stack und werden ausschliesslich von
+# step03c_topic_quality.py verwendet (Kohaerenzmasse). Am Topic-Modell,
+# an den Indikatoren und an den Memberships ist keines von ihnen beteiligt.
+#
+# Die Obergrenzen in requirements.txt sind an vier Stellen ueberschritten
+# (numpy, pandas, sentence-transformers, plotly). Das ist ein Widerspruch
+# in der Dokumentation, nicht die Ursache einer Abweichung: Alle vier waren
+# bereits am 12./13.04.2026 installiert, also VOR dem Referenzlauf.
+
+annotated-doc==0.0.4
+anyio==4.13.0
+bertopic==0.17.4
+certifi==2026.2.25
+click==8.3.2
+contourpy==1.3.3
+cycler==0.12.1
+filelock==3.25.2
+fonttools==4.62.1
+fsspec==2026.3.0
+gensim==4.4.0
+h11==0.16.0
+hdbscan==0.8.42
+hf-xet==1.4.3
+httpcore==1.0.9
+httpx==0.28.1
+huggingface_hub==1.10.1
+idna==3.11
+Jinja2==3.1.6
+joblib==1.5.3
+kiwisolver==1.5.0
+llvmlite==0.47.0
+markdown-it-py==4.0.0
+MarkupSafe==3.0.3
+matplotlib==3.10.8
+mdurl==0.1.2
+mpmath==1.3.0
+narwhals==2.19.0
+networkx==3.6.1
+numba==0.65.0
+numpy==2.4.4
+packaging==26.0
+pandas==3.0.2
+pillow==12.2.0
+pip==24.2
+plotly==6.7.0
+Pygments==2.20.0
+pynndescent==0.6.0
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+regex==2026.4.4
+rich==15.0.0
+safetensors==0.7.0
+scikit-learn==1.8.0
+scipy==1.17.1
+seaborn==0.13.2
+sentence-transformers==5.4.0
+setuptools==81.0.0
+shellingham==1.5.4
+six==1.17.0
+smart_open==7.6.1
+sympy==1.14.0
+tabulate==0.10.0
+threadpoolctl==3.6.0
+tokenizers==0.22.2
+torch==2.11.0
+tqdm==4.67.3
+transformers==5.5.3
+typer==0.24.1
+typing_extensions==4.15.0
+umap-learn==0.5.12
+wrapt==2.2.1
