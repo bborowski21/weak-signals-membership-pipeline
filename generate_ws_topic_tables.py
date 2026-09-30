@@ -97,7 +97,7 @@ def recompute_memberships(ind: pd.DataFrame) -> pd.DataFrame:
                      index=ind.index, columns=ind.columns)
     dim = pd.DataFrame(index=ind.index)
     for name, inds in INDICATOR_DIMENSIONS.items():
-        valid = [c for c in inds if z[c].std() > 0.01]
+        valid = [c for c in inds if ind[c].std() > 0.01]
         dim[name] = z[valid].mean(axis=1)
     zd = dim.apply(robust_z, axis=0)
     z_core = zd[CORE_DIMS].mean(axis=1)

@@ -24,7 +24,7 @@ def build_steps(only_phase: int | None = None,
                 continue
             steps.append((
                 f"{step_prefix}.{p}",
-                f"{label_prefix} — Phase {p}",
+                f"{label_prefix} – Phase {p}",
                 [PYTHON, script, str(p)],
             ))
 
@@ -72,7 +72,7 @@ def run_step(step_id: str, label: str, cmd: list[str], dry_run: bool = False) ->
     bar = "=" * 78
     print()
     print(bar)
-    print(f"  STEP {step_id}  —  {label}")
+    print(f"  STEP {step_id}  –  {label}")
     print(bar)
     print(f"  CMD: {' '.join(cmd)}")
     if dry_run:
@@ -103,7 +103,7 @@ def main() -> None:
         "--from-step",
         default=None,
         metavar="ID",
-        help="Wiederaufnahme ab Step-ID (z.B. '3.1', '5a.2'). "
+        help="Wiederaufnahme ab Step-ID (z.B. '3.1', '5.2'). "
              "Mit --dry-run vorher alle IDs anzeigen.",
     )
     ap.add_argument(
@@ -137,7 +137,7 @@ def main() -> None:
 
     print()
     print("#" * 78)
-    print(f"  F3-PIPELINE-ORCHESTRIERUNG  —  {len(steps)} Schritte")
+    print(f"  F3-PIPELINE-ORCHESTRIERUNG  –  {len(steps)} Schritte")
     if args.only_phase:
         print(f"  Modus: nur Phase {args.only_phase}")
     if args.dry_run:
@@ -153,7 +153,7 @@ def main() -> None:
 
     print()
     print("#" * 78)
-    print(f"  PIPELINE FERTIG  —  Gesamtzeit: {fmt_duration(dt_total)}")
+    print(f"  PIPELINE FERTIG  –  Gesamtzeit: {fmt_duration(dt_total)}")
     print("#" * 78)
 
 

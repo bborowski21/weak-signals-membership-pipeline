@@ -1,43 +1,36 @@
-# F3-Pipeline v1.2: Membership-Scoring zur Detektion von Weak Signals
-# Reproduktionsabhaengigkeiten — Stand 2026-05
+# F3-Pipeline: Membership-Scoring zur Charakterisierung von Weak Signals
+# Abhaengigkeiten, Stand v2.4.1 (Oktober 2026)
 #
 # Versionsstrategie:
-#   - Obergrenzen pinnen die Major-Version, um Reproduzierbarkeit
-#     ueber das Embargo-Fenster der WoS-Daten hinaus zu sichern.
-#   - Untergrenzen markieren die minimal getestete API-Kompatibilitaet.
+#   - Die Bereiche umfassen die Major-Versionen des im Manuskript berichteten Laufs.
+#   - Massgeblich fuer diesen Lauf ist requirements.lock.txt (Python 3.12.7, 64 Distributionen).
+#   - pandas 3 und die Fassungen der Lock-Datei (numpy, scipy, scikit-learn) verlangen Python ab 3.11.
 #
 # Installation (siehe README):
 #   pip install -r requirements.txt
-#   python -m spacy download en_core_web_sm
 
 # Datenverarbeitung
-numpy>=1.24,<2.0
-pandas>=2.0,<3.0
+numpy>=2.0,<3.0
+pandas>=3.0,<4.0
 scipy>=1.10,<2.0
 
-# Topic Modeling / Embeddings
-sentence-transformers>=2.2,<3.0
+# Topic Modeling / Embeddings (torch als Grundlage von sentence-transformers)
+sentence-transformers>=5.0,<6.0
 torch>=2.0,<3.0
 umap-learn>=0.5,<1.0
 hdbscan>=0.8.33,<0.9
 scikit-learn>=1.3,<2.0
 
-# Textverarbeitung
-spacy>=3.6,<4.0
-nltk>=3.8,<4.0
-
-# Statistik / Faktorenanalyse
+# Faktorenanalyse
 factor_analyzer>=0.5,<1.0
-statsmodels>=0.14,<1.0
 
-# Topic-Modell-Güte (step03c_topic_quality.py)
+# Topic-Modell-Guete (step03c_topic_quality.py)
 gensim>=4.3,<5.0
 
 # Visualisierung
 matplotlib>=3.7,<4.0
 seaborn>=0.12,<1.0
-plotly>=5.15,<6.0
+pillow>=10.0,<13.0
 
-# Hilfsmodule
-tqdm>=4.65,<5.0
-pyyaml>=6.0,<7.0
+# Markdown-Tabellen in den Berichten von Schritt 3b und 5 (pandas.DataFrame.to_markdown)
+tabulate>=0.9,<1.0

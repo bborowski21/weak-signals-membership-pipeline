@@ -7,7 +7,7 @@ Enthalten sind ausschliesslich abgeleitete Groessen (Indikatorwerte, Dimensionss
 Memberships, Margins, c-TF-IDF-Schluesselwoerter); keine Rohdaten und keine
 bibliographischen Angaben aus Web of Science.
 
-Aufruf im Pipeline-Ordner:  python3 build_supplement.py [--out supplement_rp]
+Aufruf im Pipeline-Ordner:  python3 build_supplement.py [--out supplement_rp] [--run-dir LAUFORDNER]
 Schreibt:
   indicator_correlations_phase1.csv / _phase2.csv   (16 x 16, Pearson r)
   topic_dimension_scores.csv                        (Topic, Phase, 5 Dimensionen, Konfiguration, Margin)
@@ -29,7 +29,9 @@ from config import BASE_DIR, DIM_NAMES, INDICATOR_DIMENSIONS
 import rp_style as rp
 
 MEMB = ["m_ws", "m_trend", "m_ec", "m_latent"]
-MEMB_LABEL = {"m_ws": "Weak signal", "m_trend": "Trend", "m_ec": "Emerging concept", "m_latent": "Latent/mixed"}
+# 30.09.: Spalte configuration traegt die Namen des Manuskripts (Weak Signal, Emerging Concept, Trend, Latent;
+# Entscheidung vom 06.09.), nicht mehr "Weak signal", "Emerging concept", "Latent/mixed".
+MEMB_LABEL = {"m_ws": "Weak Signal", "m_trend": "Trend", "m_ec": "Emerging Concept", "m_latent": "Latent"}
 PHASES = {1: BASE_DIR / "output_phase1", 2: BASE_DIR / "output_phase2"}
 PHASE_YEARS = {1: "2000-2015", 2: "2016-2025"}
 IND_ORDER = [i for d in DIM_NAMES for i in INDICATOR_DIMENSIONS[d]]
@@ -48,7 +50,12 @@ def keywords(d: Path, n: int = 3) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="supplement_rp")
+    ap.add_argument("--run-dir", default=None,
+                    help="Laufordner mit output_phase1/2 (Standard: Pipeline-Ordner)")
     a = ap.parse_args()
+    if a.run_dir:
+        run = Path(a.run_dir).resolve()
+        PHASES[1], PHASES[2] = run / "output_phase1", run / "output_phase2"
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
 
@@ -88,7 +95,7 @@ dimension scores, membership values and margins. No bibliographic records, no ra
 |---|---|---|
 | `indicator_correlations_phase1.csv` | Pearson correlations between the 16 indicators, Phase 1 ({PHASE_YEARS[1]}) | 16 |
 | `indicator_correlations_phase2.csv` | Pearson correlations between the 16 indicators, Phase 2 ({PHASE_YEARS[2]}) | 16 |
-| `topic_dimension_scores.csv` | Dimension scores (z-standardised) per topic, both phases, with dominant configuration and margin | {n1 + n2} |
+| `topic_dimension_scores.csv` | Dimension scores (means of z-standardised indicators) per topic, both phases, with dominant configuration and margin | {n1 + n2} |
 | `topic_memberships.csv` | The four membership values per topic, both phases, with margin and margin class | {n1 + n2} |
 | `topic_indicators.csv` | The 16 indicator values per topic, both phases | {n1 + n2} |
 

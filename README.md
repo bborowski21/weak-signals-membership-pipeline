@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20283613.svg)](https://doi.org/10.5281/zenodo.20283613)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python ≥3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue.svg)](https://www.python.org/downloads/)
+[![Python ≥3.11](https://img.shields.io/badge/python-%E2%89%A53.11-blue.svg)](https://www.python.org/downloads/)
 
 Reproduktionscode zur Masterarbeit *Weak Signals in Foresight: Ein Operationalisierungsframework für Frühindikatoren
 potenzieller Entwicklungen* (Ben-Nicholas Borowski,
@@ -14,22 +14,22 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 ## Zitation
 
 Zwei Arbeiten zitieren das Repositorium, jede mit eigenem Stand. Die
-Masterarbeit referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript seit
-dem 30.09.2026 den Stand `v2.4` (davor `v2.3.1`). Alle Stände liegen unter
+Masterarbeit referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript
+den Stand `v2.4.1` (davor `v2.4` und `v2.3.1`). Alle Stände liegen unter
 derselben Concept-DOI
 [10.5281/zenodo.20283613](https://doi.org/10.5281/zenodo.20283613), die stets
 auf die jeweils neueste Version auflöst; das Badge oben zeigt diese
 Concept-DOI. Die versionsgenauen DOIs stehen auf der Zenodo-Seite unter
 *Versions*.
 
-Für den Stand `v2.4` (Manuskript) bitte zitieren als:
+Für den Stand `v2.4.1` (Manuskript) bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
 > model, sixteen indicators and four configurational memberships*
-> (Version v2.4) [Software]. Zenodo.
+> (Version v2.4.1) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 >
-> Die versionsgenaue DOI von v2.4 vergibt Zenodo mit dem Release; sie steht
+> Die versionsgenaue DOI von v2.4.1 vergibt Zenodo mit dem Release; sie steht
 > dann auf der Zenodo-Seite unter *Versions*.
 
 BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
@@ -41,9 +41,8 @@ geändert werden.
   author    = {Borowski, Ben-Nicholas},
   title     = {Weak-signal membership pipeline: topic model, sixteen indicators
                and four configurational memberships},
-  version   = {v2.4},
+  version   = {v2.4.1},
   year      = {2026},
-  month     = sep,
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
   url       = {https://doi.org/10.5281/zenodo.20283613}
@@ -53,7 +52,8 @@ geändert werden.
 Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
 `version = {v2.2}`, dem deutschen Titel des damaligen Deposits und der
 zugehörigen Versions-DOI; für `v2.3.1` mit der Versions-DOI
-[10.5281/zenodo.22128929](https://doi.org/10.5281/zenodo.22128929).
+[10.5281/zenodo.22128929](https://doi.org/10.5281/zenodo.22128929), für `v2.4` mit
+[10.5281/zenodo.23058951](https://doi.org/10.5281/zenodo.23058951).
 
 ## Architektur
 
@@ -63,36 +63,51 @@ entspricht einem Modul; gemeinsame Konfiguration in `config.py`.
 
 | Schritt | Beschreibung | Modul |
 |---------|--------------|-------|
-| 0       | KATI-WoS-Datenaufbereitung; ISO-3-Normalisierung | `prepare_kati_data.py` |
-| 0a      | Textbereinigung (Lemmatisierung, Token-Filter) | `text_preprocessing.py` |
+| 0       | KATI-Lieferung in WoS-Spalten (Deduplizierung nach UID, Dokumenttyp ohne „early access“, Länder in Großbuchstaben) | `prepare_kati_data.py` |
+| 0a      | Textbereinigung für Schritt 1 (LaTeX, HTML, Copyright-Hinweise, Unicode NFKC, Leerraum); schreibt die `_clean`-Dateien | `text_preprocessing.py`, `clean_pipeline_data.py` |
 | 1       | Topic Modeling (SBERT + UMAP + HDBSCAN) | `step01_topic_modeling.py` |
 | 1b      | Phasenübergreifendes Topic-Matching (Hybrid-Score) | `step01b_cross_phase_matching.py` |
-| 1c      | TEM-Robustheitsdiagnostik | `step01c_tem_robustness.py` |
+| 1c      | TEM-Robustheitsdiagnostik (nicht im berichteten Lauf) | `step01c_tem_robustness.py` |
 | 2       | 16 Indikatoren über 5 Dimensionen | `step02_indicators.py` |
 | 2       | Membership-Scoring (kontinuierlich, Sigmoid) | `step02_memberships.py` |
-| 2b      | Zitations-Kohärenz ($\rho_t$) | `step02b_reference_overlap.py` |
+| 2b      | Zitations-Kohärenz ($\rho_t$) aus den KATI-Referenzlisten | `step02b_run_with_kati.py` (Funktionen aus `step02b_reference_overlap.py`) |
 | 2c      | Citation-Topic-Profil (Macro/Meso/Micro, deskriptiv) | `step02c_citation_topic_profile.py` |
-| 3       | EFA (minres, Oblimin) — interne Strukturkohärenz; PCA nur als etikettierter Robustheitscheck | `step03_efa_pca.py` |
+| 3       | EFA (minres, Oblimin): interne Strukturkohärenz; PCA nur als etikettierter Robustheitscheck | `step03_efa_pca.py` |
 | 3b      | Externe Konstruktvalidierung (RTW/CTW) | `step03b_external_validation.py` |
 | 3c      | Topic-Modell-Güte ($C_v$/$C_{\text{NPMI}}$/$C_{\text{UMass}}$, Diversität) | `step03c_topic_quality.py` |
 | 4       | Phaseninterne Visualisierungen | `step04_visualizations.py` |
-| 4b      | Cross-Phase-Visualisierungen | `step04b_cross_phase_viz.py` |
+| 4b      | Cross-Phase-Visualisierungen (nicht im berichteten Lauf) | `step04b_cross_phase_viz.py` |
 | 5       | OAT-Sensitivitätsanalyse ($k \times \lambda$-Grid) | `step05_sensitivity.py` |
 | 5b      | Sensitivitäts-Artefakte (Vorberechnung) | `step05b_artifacts.py` |
 | 5c      | Cross-Phase-Sensitivität (Hybrid-$\alpha_H$) | `step05c_cross_phase_sensitivity.py` |
+| 6       | Übergänge der dominanten Konfiguration zwischen den Phasen | `step06_cross_phase_transitions.py` |
 
 Die Wrapper `run_*.py` orchestrieren die Schritte phasen- und
 übergreifend. Die wesentlichen Einstiegspunkte:
 
 ```bash
-python run_all_phases.py                  # Vollständige Pipeline (P1 + P2 + Cross)
-python run_phase.py 1                     # Phase 1 (2000–2015), Schritte 1–3
-python run_phase.py 2                     # Phase 2 (2016–2025), Schritte 1–3
+python run_all_phases.py                  # Schritte 1 bis 5c beider Phasen (ohne 2b, 2c, 3c, 6 und Robustheit)
+python run_phase.py 1                     # Schritt 1 (Topic Modeling), Phase 1 (2000–2015)
+python run_phase.py 2                     # Schritt 1 (Topic Modeling), Phase 2 (2016–2025)
 python run_phase_viz.py 1                 # Visualisierungen Phase 1
 python run_phase_viz.py 2                 # Visualisierungen Phase 2
-python run_cross_phase_viz.py             # Cross-Phase: Sankey, Shift-Heatmap, Strukturradar
 python run_phase_sensitivity.py 1         # OAT-Sensitivität Phase 1
 ```
+
+### Der im Manuskript berichtete Lauf
+
+Der im Manuskript berichtete Lauf (29./30.09.2026) ist mit dem Treiber
+`berichteter_lauf/neulauf_voll.py` gerechnet; dort beschreibt eine README Stufen,
+Aufruf und Ordnerannahmen. Er rechnet die Schritte von `run_all_phases.py`
+(1 und 1b mit `--with-sbert`, dann 2 bis 5c) und dazu, in dieser Reihenfolge,
+`prepare_kati_data.py` und `clean_pipeline_data.py` vor Schritt 1,
+`step02b_run_with_kati.py`, `step03c_topic_quality.py` und
+`pruefe_reproduzierbarkeit.py` nach Schritt 1b, `run_step02c_phases.py`,
+`step06_cross_phase_transitions.py`, `perturbation_experiment.py`,
+`nullmodel_experiment.py`, `nullmodel_class_shares.py`, `standardisation_variants.py`,
+`run_phase_boundary_stability.py`, `make_figS16.py`, `paper_figures_rp.py` und
+`build_supplement.py` nach Schritt 5c. Tabelle S3 des Supplements erzeugt
+`make_table_s3.py` aus dem Laufordner.
 
 ### Zwei Betriebsmodi des Cross-Phase-Matchings
 
@@ -114,17 +129,17 @@ Die phaseninternen und phasenübergreifenden Visualisierungen tragen die
 in `step02_memberships.py` operativ verankerten Margin-Schwellen
 ($\Delta = m_{(1)} - m_{(2)}$) als zusätzliche Codierungsebene:
 
-- **`dimension_heatmap.png`** — Topic-Labels enthalten `(Δ=...)` analog
+- **`dimension_heatmap.png`**: Topic-Labels enthalten `(Δ=...)` analog
   zur Membership-Heatmap. Die Eindeutigkeit der Argmax-Zuordnung pro
   Zeile bleibt damit direkt ablesbar.
-- **`extended_tem.png`** — Bubble-Alpha und Outline-Stil codieren drei
+- **`extended_tem.png`**: Bubble-Alpha und Outline-Stil codieren drei
   Margin-Stufen: $\Delta \geq 0{,}10$ opak/weiße Outline (klar);
   $0{,}05 \leq \Delta < 0{,}10$ transparent gestrichelt (Übergang);
   $\Delta < 0{,}05$ durchscheinend gestrichelt (mehrdeutig). Die
   Farbe codiert weiterhin den Signaltyp, die Bubble-Größe die
   Epistemische Offenheit. Quadrantenlabels sitzen in den Plot-Ecken;
   die Legende ist außerhalb des Datenbereichs platziert.
-- **`migration_sankey.png`** (cross-phase) — Bänder pro
+- **`migration_sankey.png`** (cross-phase): Bänder pro
   Argmax-Migration sind in einen klaren Anteil
   ($\Delta \geq 0{,}10$ in beiden Phasen, vollflächig) und einen
   knappen Anteil ($\Delta < 0{,}10$ in P1 oder P2, gehatched `//`)
@@ -134,11 +149,12 @@ in `step02_memberships.py` operativ verankerten Margin-Schwellen
 Diese Codierung implementiert die in Kapitel 5 der Masterarbeit
 (Abschnitt *Dreistufige Margin-Lesart*) entwickelte Interpretationsskala
 auch visuell und vermeidet, dass die argmax-Reduktion die in V2
-zurückgewiesene kategoriale Reifizierung visuell reproduziert.
+zurückgewiesene kategoriale Reifizierung visuell reproduziert. Die
+Abbildungen des Manuskripts baut `paper_figures_rp.py` (Stil in `rp_style.py`).
 
 ## Installation
 
-Python ≥ 3.10. Empfohlen: Virtual Environment.
+Python ≥ 3.11. Empfohlen: Virtual Environment.
 
 ```bash
 git clone https://github.com/bborowski21/weak-signals-membership-pipeline.git
@@ -146,7 +162,6 @@ cd weak-signals-membership-pipeline
 python -m venv .venv
 source .venv/bin/activate           # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m spacy download en_core_web_sm
 ```
 
 Die exakte Umgebung des im Manuskript berichteten Laufs (Python 3.12.7,
@@ -167,22 +182,26 @@ die 17 in der Methoden-Sektion 3.1.1 dokumentierten Felder umfasst.
 
 ### Indikator-Datenstatus (finale Mai-2026-Lieferung)
 
-Die finale KATI-Tranche (Mai 2026) liefert alle 17 konstitutiven
-WoS-Felder, einschließlich *Author Full Names* und *Cited References*.
-Damit sind **alle 16 Indikatoren aktiv** (inkl. `DI1`,
-Autoren-Konzentration) und die Zitations-Kohärenzprüfung
-(`step02b_reference_overlap.py`, $\rho_t$) ist auf beiden Phasen
-durchgeführt (Cited-References-Abdeckung: P1 >99,9 %, P2 99,5 %).
-Der dokumentierte NaN-Fallback bleibt als defensive Vorrichtung für
-reduzierte Datenlieferungen erhalten.
+Die finale KATI-Tranche (Mai 2026) liefert die konstitutiven WoS-Felder
+einschließlich *Author Full Names*; damit sind **alle 16 Indikatoren aktiv**
+(inkl. `DI1`, Autoren-Konzentration). Die Referenzen liegen als eigene
+Listen je Phase vor (`QC_2000-2015 References.csv`, `QC_2016-2025 References.csv`);
+aus ihnen rechnet `step02b_run_with_kati.py` die Zitations-Kohärenz $\rho_t$.
+`step02b_reference_overlap.py` liest stattdessen das WoS-Feld *Cited References*,
+das `prepare_kati_data.py` leer lässt, und liefert auf KATI-Daten deshalb keine
+Werte; es bleibt für WoS-Exporte mit diesem Feld erhalten. Der dokumentierte
+NaN-Fallback bleibt als defensive Vorrichtung für reduzierte Datenlieferungen
+erhalten.
 
-
-Ein synthetischer Mini-Korpus zum Smoke-Test der Pipeline kann über
-`generate_synthetic_artifacts.py` erzeugt werden:
+Synthetische Artefakte der Schritte 1 und 2 für einen Smoke-Test erzeugt
+`generate_synthetic_artifacts.py` (nach `output_smoke/`):
 
 ```bash
-python generate_synthetic_artifacts.py --output data/synthetic_demo.csv --n 500
+python generate_synthetic_artifacts.py --output-dir output_smoke --n-docs 500
 ```
+
+Der danach angezeigte Folgeschritt (`run_sensitivity_hparam.py`, ebenso
+`--run-sensitivity`) ist in v2.4.1 nicht lauffähig.
 
 ## Konfiguration
 
@@ -209,56 +228,32 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 ## Repository-Struktur
 
-```
-.
-├── README.md
-├── LICENSE
-├── requirements.txt
-├── .gitignore
-├── config.py
-├── prepare_kati_data.py
-├── text_preprocessing.py
-├── step01_topic_modeling.py
-├── step01b_cross_phase_matching.py
-├── step01c_tem_robustness.py
-├── step02_indicators.py
-├── step02_memberships.py
-├── step02b_reference_overlap.py
-├── step02c_citation_topic_profile.py
-├── step03_efa_pca.py
-├── step03b_external_validation.py
-├── step04_visualizations.py
-├── step04b_cross_phase_viz.py
-├── step05_sensitivity.py
-├── run_all.py
-├── run_all_phases.py
-├── run_phase.py
-├── run_phase_clean.py
-├── run_phase_indicators.py
-├── run_phase_efa.py
-├── run_phase_validation.py
-├── run_phase_viz.py
-├── run_phase_sensitivity.py
-├── run_step02c_phases.py
-├── run_cross_phase_viz.py
-├── step05c_cross_phase_sensitivity.py
-├── run_sensitivity_hparam.py
-├── step05b_artifacts.py
-├── clean_pipeline_data.py
-├── generate_synthetic_artifacts.py
-├── rerender_loading_matrices.py
-└── render_efa_pub.py
-```
+| Bereich | Dateien |
+|---|---|
+| Dokumentation | `README.md`, `CHANGELOG.md`, `RELEASE_v2.3.md`, `RELEASE_v2.3.1.md`, `RELEASE_v2.4.md`, `RELEASE_v2.4.1.md`, `CITATION.cff`, `LICENSE` |
+| Umgebung | `requirements.txt`, `requirements.lock.txt`, `config.py`, `.gitignore` |
+| Daten | `prepare_kati_data.py`, `text_preprocessing.py`, `clean_pipeline_data.py` |
+| Pipeline | `step01_topic_modeling.py` bis `step06_cross_phase_transitions.py` (Tabelle oben), Wrapper `run_all_phases.py`, `run_phase.py`, `run_phase_indicators.py`, `run_phase_efa.py`, `run_phase_validation.py`, `run_phase_viz.py`, `run_phase_sensitivity.py`, `run_step02c_phases.py` |
+| Robustheit | `perturbation_experiment.py`, `nullmodel_experiment.py`, `nullmodel_class_shares.py`, `standardisation_variants.py`, `run_phase_boundary_stability.py` |
+| Manuskript | `paper_figures_rp.py`, `rp_style.py`, `make_figS16.py`, `build_supplement.py`, `make_table_s3.py` |
+| Belege des berichteten Laufs | `pruefe_reproduzierbarkeit.py`, `reproduzierbarkeit_phase1.json`, `reproduzierbarkeit_phase2.json`, `topic_quality_results.json`, `output_phase_boundary/phase_boundary_stability.json`, `berichteter_lauf/` (Treiber und README) |
+| Nicht im berichteten Lauf | `run_all.py` (veraltet), `run_phase_clean.py`, `run_sensitivity_hparam.py`, `run_wp1_rightedge.py`, `run_cross_phase_viz.py`, `step01c_tem_robustness.py`, `step04b_cross_phase_viz.py`, `paper_figures.py`, `plot_style.py`, `rerender_pub.py`, `rerender_loading_matrices.py`, `render_efa_pub.py`, `generate_ws_topic_tables.py`, `analyse_konfidenz.py`, `generate_synthetic_artifacts.py` |
 
 ## Versionierung
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
 über das Git-Tag `v2.2` fixiert und besitzt eine eigene Zenodo-DOI.
-Das daraus hervorgegangene Manuskript referenziert seit dem 30.09.2026
-`v2.4` (davor `v2.3.1`), jeweils mit eigener Zenodo-DOI. Alle Tags bleiben
-unverändert bestehen. v2.4 behebt die Zählung der Reviews in DS3, stellt die
-Glättung von DS3 auf den Review-Anteil der Phase um und hält Laufumgebung und
-Revision des Sprachmodells fest; Einzelheiten in `CHANGELOG.md`.
+Das daraus hervorgegangene Manuskript referenziert `v2.4.1` (davor `v2.4`
+und `v2.3.1`), jeweils mit eigener Zenodo-DOI. Alle Tags bleiben
+unverändert bestehen. v2.4.1 berichtigt die Faktorkorrelationen und
+Kommunalitäten der EFA, zwei Rechenwege der Sensitivitätsanalyse und drei
+Stellen ohne Wirkung auf den berichteten Lauf, nimmt die Skripte für
+Abbildungen, Tabelle S3 und die Klassenanteile unter den Nullmodellen sowie
+den Treiber des berichteten Laufs auf und berichtigt die Beschreibung;
+keine Zahl des Manuskripts ändert sich. v2.4 behebt die Zählung der Reviews
+in DS3, stellt die Glättung von DS3 auf den Review-Anteil der Phase um und
+hält Laufumgebung und Revision des Sprachmodells fest; Einzelheiten in
+`CHANGELOG.md`.
 v2.2 vereinheitlicht die Step-Benennung auf ein durchgängig
 sequenzielles Schema und ergänzt das Diagnostikmodul
 `step02c_citation_topic_profile.py` (deskriptive Citation-Topic-
@@ -281,4 +276,4 @@ Repositories ist erbeten.
 
 ## Autor
 
-Ben-Nicholas Borowski — Master Data Science & Analytics — 2026
+Ben-Nicholas Borowski, Master Data Science & Analytics, 2026

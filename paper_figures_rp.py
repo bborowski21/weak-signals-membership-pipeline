@@ -1,29 +1,30 @@
 """paper_figures_rp.py
 
-Publikationsfassung aller Abbildungen im Stil fuer Research Policy (Elsevier).
-Eigenstaendige Kopie neben paper_figures.py; die Pipeline-Skripte bleiben unangetastet.
-Liest nur vorhandene Artefakte (output_phase1/, output_phase2/, output_cross_phase/,
-optional perturbation_*.csv) und schreibt nach figures_rp/ je Abbildung
-PDF (Vektor, exakte Endbreite), TIFF (RGB, LZW, 600 dpi), PNG (Sichtprobe, 300 dpi)
-und eine Graustufenprobe. Stil, Palette und Zweitkodierung: rp_style.py.
+Abbildungen des Manuskripts im Stil für Research Policy (Elsevier); Stil, Palette und Zweitkodierung in
+rp_style.py. Liest nur vorhandene Artefakte (output_phase1/, output_phase2/, output_cross_phase/, optional
+perturbation_*.csv) und schreibt je Abbildung PDF (Vektor, exakte Endbreite), TIFF (RGB, LZW, 600 dpi), PNG
+(Sichtprobe, 300 dpi) und eine Graustufenprobe, dazu manifest.csv und palette.json. Seit v2.4.1 ist dies die
+Fassung, mit der die Abbildungen des Manuskripts gebaut sind (bis v2.4 lag sie außerhalb des Repos, FigA9 kam
+aus der älteren Repo-Fassung; deren Geometrie, 140 x 110 mm, steht jetzt hier).
 
-Figure-Plan (provisorisch, Nummern folgen der Manuskriptreihenfolge; am 09.10. bestaetigen):
+Abbildungen (Auswahlnamen für --only und Dateinamen wie im Manuskript):
   Haupttext   Fig1 configuration_profiles, Fig2 margin_distribution, Fig3 class_profiles,
-              Fig4 perturbation_flip_vs_margin, Fig5 ws_reference_coherence, Fig6 efa_pattern_loadings
-  Anhang A    FigA1 temporal_evolution, FigA2 extended_tem, FigA3 scree, FigA4 factor_correlations,
-              FigA5a/b indicator_correlations, FigA6 dimension_heatmap, FigA7 membership_heatmap,
-              FigA8a/b ws_detail_radars, FigA9 structure_compare, FigA10 topic_quality,
-              FigA11 perturbation_flip_by_margin_class
-  Parkplatz   FigP1 migration_sankey, FigP2 membership_shift, FigP3 signature_scatter
-              (Cross-Phase-Befunde, Option B; Entscheidung am 09.10.)
+              Fig4 ws_reference_coherence, Fig5 perturbation_flip_vs_margin, Fig6 efa_pattern_loadings
+  Anhang A    FigA1 temporal_evolution, FigA2 extended_tem, FigA3 scree_parallel_analysis,
+              FigA4 factor_correlations, FigA5a/b indicator_correlations, FigA6 dimension_heatmap,
+              FigA7 membership_heatmap, FigA8a/b ws_detail_radars, FigA9 structure_compare_phases,
+              FigA10 topic_quality_boxplots, FigA11 perturbation_flip_by_margin_class
+  Supplement  FigS1 model_interface (Abbildung S16 zeichnet make_figS16.py)
+  Nicht im Manuskript  FigP1 migration_sankey, FigP2 membership_shift, FigP3 signature_scatter
 
-Terminologie: englische Dimensionsnamen sind PROVISORISCH (rp_style.DIM_EN).
-Aufruf:  python3 paper_figures_rp.py [--only Fig2,FigA3] [--perturbation-dir PFAD] [--out figures_rp]
+Aufruf:  python3 paper_figures_rp.py [--run-dir LAUFORDNER] [--only Fig2,FigA3] [--perturbation-dir PFAD]
+                                     [--out figures_rp]
 """
 from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 import warnings
 from pathlib import Path
 
@@ -94,6 +95,46 @@ def pert_paths(ph: int):
     return None, None
 
 
+def set_run_dir(run: Path) -> None:
+    """Liest alle Laufdaten aus einem Laufordner (output_phase1/2, output_cross_phase).
+
+    Ersetzt das Setzen der Modulvariablen von aussen (so hat es der Treiber des
+    Neulaufs vom 29./30.09. gemacht). Ohne --run-dir bleibt der Pipeline-Ordner.
+    """
+    global P1_DIR, P2_DIR, CROSS_DIR
+    run = Path(run).resolve()
+    P1_DIR, P2_DIR, CROSS_DIR = run / "output_phase1", run / "output_phase2", run / "output_cross_phase"
+    PHASES[1]["dir"], PHASES[2]["dir"] = P1_DIR, P2_DIR
+
+
+def margin_axis_upper(values, step: float = 0.05, floor: float = 0.55) -> float:
+    """Obere Grenze einer Margin-Achse: naechstes Vielfaches von step ueber dem groessten Wert.
+
+    30.09.: Die Grenze war fest (Fig2 0,55, Fig5 0,53). Im Neulauf hat P2 T251 die Margin
+    0,586 und fehlte deshalb in beiden Abbildungen. Jetzt folgt die Achse den Daten, fuer
+    beide Panels gleich, damit die Phasen vergleichbar bleiben; mindestens floor.
+    """
+    vmax = max(float(np.nanmax(np.asarray(v, dtype=float))) for v in values)
+    return max(floor, float(np.ceil((vmax - 1e-9) / step) * step))
+
+
+def lead_terms(words, n: int = 2, limit: int = 40) -> str:
+    """Die n fuehrenden Begriffe eines Topics fuer einen Paneltitel, nie mitten im Wort gekuerzt.
+
+    30.09.: Vorher wurde die Zeichenkette hart bei 30 Zeichen abgeschnitten
+    ("T60: tomographic probability, tomog"). Passen die n Begriffe nicht in limit
+    Zeichen, steht nur der erste da; ist schon der erste zu lang, wird an einer
+    Wortgrenze gekuerzt.
+    """
+    words = [w for w in words if w][:n]
+    s = ", ".join(words)
+    if len(s) > limit and words:
+        s = words[0]
+    if len(s) > limit:
+        s = textwrap.shorten(s, width=limit, placeholder=" ...")
+    return s
+
+
 def radar_axes(ax, labels, rmax=None, rmin=None, label_pad=4, codes=False):
     """Radarachse; die Achsenbeschriftung wird als eigene Textebene ueber alles gelegt.
 
@@ -160,12 +201,131 @@ def fig1_configuration_profiles() -> None:
     rp.save(fig, "Fig1_configuration_profiles", "single", OUT_DIR, note="Konzeptabbildung, stilisierte Profile")
 
 
+# --- Abbildung S1, eingesetzt am 07.09.2026 ---------------------------
+# Schema der Schnittstelle zwischen Einheitenbildung und Indikatorschicht.
+# Konzeptabbildung ohne Daten, wie fig1. Herleitung und Befunde im
+# Kopfkommentar von figS1_model_interface.py.
+def figS1_model_interface() -> None:
+    """Schnittstelle zwischen Einheitenbildung und Indikatorschicht (Konzeptabbildung)."""
+    fig, ax = rp.figure("mid", height_mm=112)
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+    ax.axis("off")
+
+    FILL_IN = "#f2f2f2"
+    FILL_STEP = "#ffffff"
+    FILL_PASS = "#e8eef5"
+    FILL_OUT = "#f2f2f2"
+    FILL_DESC = "#fafafa"
+    EDGE = "#333333"
+
+    def box(x, y, w, h, fill, ls="-", lw=0.6):
+        ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=1.0",
+                                       linewidth=lw, edgecolor=EDGE, facecolor=fill,
+                                       linestyle=ls, zorder=2))
+
+    def step(x, y, w, h, titel, detail, fill=FILL_STEP):
+        box(x, y, w, h, fill)
+        ax.text(x + w / 2, y + h * 0.66, titel, ha="center", va="center", zorder=3,
+                fontsize=rp.FS["label"], color=rp.TEXT)
+        ax.text(x + w / 2, y + h * 0.26, detail, ha="center", va="center", zorder=3,
+                fontsize=rp.FS["small"], color=rp.TEXT_MUTED, linespacing=1.3)
+
+    def arrow(x, y0, y1, lw=0.7, color=EDGE, scale=8):
+        ax.annotate("", xy=(x, y1), xytext=(x, y0), zorder=1,
+                    arrowprops=dict(arrowstyle="-|>", color=color, linewidth=lw,
+                                    shrinkA=0, shrinkB=0, mutation_scale=scale))
+
+    # --- was hineingeht ------------------------------------------------
+    box(26, 93, 48, 6, FILL_IN)
+    ax.text(50, 96, "Bibliometric records", ha="center", va="center",
+            fontsize=rp.FS["label"], color=rp.TEXT, zorder=3)
+    arrow(50, 93, 89.5)
+
+    # --- die Einheitenbildung, gestrichelt umrahmt ----------------------
+    # facecolor "none": eine weisse Fuellung wuerde die Pfeile zwischen den
+    # Schritten verdecken, weil der Rahmen nach ihnen liegt.
+    ax.add_patch(mpatches.FancyBboxPatch((3, 45), 94, 44, boxstyle="round,pad=0,rounding_size=1.0",
+                                   linewidth=0.9, edgecolor=EDGE, facecolor="none",
+                                   linestyle=(0, (4, 2)), zorder=1))
+    ax.text(4.6, 87.2, "Unit formation", ha="left", va="top", zorder=3,
+            fontsize=rp.FS["small"], color=rp.TEXT_MUTED, style="italic")
+
+    step(17, 76, 54, 9.5, "Sentence embeddings",
+         "all-MiniLM-L6-v2, 384 dimensions")
+    arrow(44, 76, 72)
+    step(17, 62.5, 54, 9.5, "Dimensionality reduction",
+         "UMAP, 384 to 15 components, 15 neighbours, cosine")
+    arrow(44, 62.5, 58.5)
+    step(17, 49, 54, 9.5, "Density-based clustering",
+         "HDBSCAN, minimum cluster size 25, minimum samples 8")
+
+    # c-TF-IDF steht daneben: es beschreibt die Topics, speist aber keinen
+    # der 16 Indikatoren.
+    box(74, 49, 16, 9.5, FILL_DESC)
+    ax.text(82, 55.4, "c-TF-IDF", ha="center", va="center", zorder=3,
+            fontsize=rp.FS["small"], color=rp.TEXT)
+    ax.text(82, 51.8, "15 terms per topic\n(descriptive)", ha="center", va="center",
+            zorder=3, fontsize=rp.FS["cell"], color=rp.TEXT_MUTED, linespacing=1.3)
+    ax.annotate("", xy=(74, 53.75), xytext=(71, 53.75), zorder=1,
+                arrowprops=dict(arrowstyle="-|>", color=rp.TEXT_MUTED, linewidth=0.6,
+                                shrinkA=0, shrinkB=0, mutation_scale=6))
+
+    # --- die Schnittstelle ---------------------------------------------
+    ax.plot([1, 99], [42, 42], linestyle=(0, (2, 2)), color=EDGE, linewidth=0.9, zorder=1)
+    ax.text(1, 40.9, "interface", ha="left", va="top", fontsize=rp.FS["small"],
+            color=rp.TEXT, style="italic", zorder=3)
+
+    # Hauptpfad: die Zuordnung
+    arrow(44, 49, 36.5)
+    box(12, 27, 64, 9, FILL_PASS)
+    ax.text(44, 32.6, "Topic assignment per publication", ha="center", va="center",
+            zorder=3, fontsize=rp.FS["label"], color=rp.TEXT)
+    ax.text(44, 29.2, "including the unassigned residual", ha="center", va="center",
+            zorder=3, fontsize=rp.FS["small"], color=rp.TEXT_MUTED)
+
+    # Zwei Nebenpfade: die Repraesentation selbst. Sie ueberqueren die
+    # Schnittstelle ebenfalls, aber nur fuer je einen Indikator.
+    ax.plot([95.5, 95.5, 84], [76, 22.5, 22.5], color=rp.TEXT_MUTED, linewidth=0.5,
+            linestyle=(0, (3, 2)), zorder=1)
+    ax.plot([93, 93, 84], [62.5, 18.5, 18.5], color=rp.TEXT_MUTED, linewidth=0.5,
+            linestyle=(0, (3, 2)), zorder=1)
+    for y in (22.5, 18.5):
+        ax.annotate("", xy=(82, y), xytext=(84, y), zorder=1,
+                    arrowprops=dict(arrowstyle="-|>", color=rp.TEXT_MUTED, linewidth=0.5,
+                                    shrinkA=0, shrinkB=0, mutation_scale=5))
+    ax.text(81, 22.5, "embeddings, for EO3 only", ha="right", va="center", zorder=3,
+            fontsize=rp.FS["cell"], color=rp.TEXT_MUTED)
+    ax.text(81, 18.5, "reduced space, for PE2 only", ha="right", va="center", zorder=3,
+            fontsize=rp.FS["cell"], color=rp.TEXT_MUTED)
+
+    # --- was darauf aufbaut --------------------------------------------
+    arrow(44, 27, 15.5)
+    box(3, 2.5, 94, 13, FILL_OUT)
+    ax.text(50, 12.3, "Sixteen indicators", ha="center", va="center",
+            fontsize=rp.FS["label"], color=rp.TEXT, zorder=3)
+    ax.text(50, 8.6, "Five dimension scores", ha="center", va="center",
+            fontsize=rp.FS["label"], color=rp.TEXT, zorder=3)
+    ax.text(50, 4.9, "Four memberships and the margin", ha="center", va="center",
+            fontsize=rp.FS["label"], color=rp.TEXT, zorder=3)
+    for y in (10.45, 6.75):
+        ax.annotate("", xy=(50, y - 0.8), xytext=(50, y + 0.8), zorder=3,
+                    arrowprops=dict(arrowstyle="-|>", color=rp.TEXT_MUTED, linewidth=0.5,
+                                    shrinkA=0, shrinkB=0, mutation_scale=5))
+
+    fig.subplots_adjust(left=0.005, right=0.995, top=0.995, bottom=0.005)
+    rp.save(fig, "FigS1_model_interface", "mid", OUT_DIR,
+            note="Konzeptabbildung, keine Daten")
+
+
 def fig2_margin_distribution(data: dict) -> None:
     fig, axes = rp.figure("double", height_mm=62, ncols=2, sharey=False)
-    bins = np.arange(0, 0.56, 0.01)
+    upper = margin_axis_upper([data[ph]["classified"]["margin"] for ph in (1, 2)])
+    bins = np.arange(0, upper + 0.005, 0.01)
     for ax, ph, letter in zip(axes, (1, 2), "AB"):
         m = data[ph]["classified"]["margin"]
         n = len(m); n05 = int((m < 0.05).sum()); n10 = int((m < 0.10).sum())
+        assert int(np.histogram(m, bins=bins)[0].sum()) == n, "Fig2: Topics ausserhalb der Achse"
         ax.axvspan(0, 0.05, color="#d9d9d9", alpha=0.6, lw=0, zorder=0)
         ax.axvspan(0.05, 0.10, color="#efefef", alpha=0.9, lw=0, zorder=0)
         ax.hist(m, bins=bins, color="#3a74b0", edgecolor="white", linewidth=0.3, zorder=2)
@@ -179,14 +339,17 @@ def fig2_margin_distribution(data: dict) -> None:
                 f"0.05 $\\leq$ $\\Delta$ < 0.10: {n10 - n05} topics ({100 * (n10 - n05) / n:.0f} %)\n"
                 f"$\\Delta$ $\\geq$ 0.10: {n - n10} topics ({100 * (n - n10) / n:.0f} %)",
                 transform=ax.transAxes, ha="right", va="top", fontsize=rp.FS["annot"], color=rp.TEXT, linespacing=1.3)
-        ax.set_xlim(0, 0.55)
+        ax.set_xlim(0, upper)
         ax.set_xlabel("Margin $\\Delta$ = $m_{(1)}$ $-$ $m_{(2)}$")
         ax.set_ylabel("Number of topics")   # beide Panels: die y-Skalen sind verschieden (n unterschiedlich)
         ax.xaxis.set_major_locator(MaxNLocator(6))
         ax.yaxis.set_major_locator(MaxNLocator(5, integer=True))
         rp.grid(ax)
         rp.panel(ax, letter)
-    fig.subplots_adjust(left=0.06, right=0.99, top=0.90, bottom=0.19, wspace=0.14)
+    # right 0.99 -> 0.982 (30.09.): die Achse endet jetzt auf einem Teilstrich (0.60), dessen Beschriftung
+    # sonst zur Haelfte ueber den rechten Bildrand ragt.
+    fig.subplots_adjust(left=0.06, right=0.982, top=0.90, bottom=0.19, wspace=0.14)
+    print(f"  Fig2: Achse bis {upper:.2f}, groesste Margin {max(float(data[p]['classified']['margin'].max()) for p in (1, 2)):.3f}")
     rp.save(fig, "Fig2_margin_distribution", "double", OUT_DIR)
 
 
@@ -237,12 +400,19 @@ def fig4_perturbation_flip(data: dict) -> None:
     S = 0.1
     fig, axes = rp.figure("double", height_mm=66, ncols=2, sharey=True)
     ok = True
-    for ax, ph, letter in zip(axes, (1, 2), "AB"):
+    tabs = {}
+    for ph in (1, 2):
         pt_path, _ = pert_paths(ph)
         if pt_path is None:
             ok = False
             break
-        pt = pd.read_csv(pt_path)
+        tabs[ph] = pd.read_csv(pt_path)
+    upper = margin_axis_upper([t["baseline_margin"] for t in tabs.values()]) if ok else 0.55
+    ticks = [0, 0.05] + [round(v, 2) for v in np.arange(0.10, upper + 1e-9, 0.10)]
+    for ax, ph, letter in zip(axes, (1, 2), "AB"):
+        if not ok:
+            break
+        pt = tabs[ph]
         y = pt[f"flip_prob_s{S}"].values
         x = pt["baseline_margin"].values
         ax.axvspan(0, 0.05, color="#d9d9d9", alpha=0.6, lw=0, zorder=0)
@@ -258,8 +428,9 @@ def fig4_perturbation_flip(data: dict) -> None:
                              f"highest margin with a flip: $\\Delta$ = {xmax:.3f}",
                 transform=ax.transAxes, ha="right", va="top", fontsize=rp.FS["annot"],
                 color=rp.TEXT, linespacing=1.35)
-        ax.set_xlim(-0.006, 0.53); ax.set_ylim(-0.02, 0.80)
-        ax.xaxis.set_major_locator(FixedLocator([0, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50]))
+        ax.set_xlim(-0.006, upper); ax.set_ylim(-0.02, 0.80)
+        assert float(x.max()) <= upper, "Fig5: Topics ausserhalb der Achse"
+        ax.xaxis.set_major_locator(FixedLocator(ticks))
         ax.yaxis.set_major_locator(FixedLocator([0, 0.2, 0.4, 0.6, 0.8]))
         ax.set_xlabel("Baseline margin $\\Delta$")
         rp.grid(ax)
@@ -269,8 +440,10 @@ def fig4_perturbation_flip(data: dict) -> None:
         print("  Fig4 uebersprungen: perturbation_topics.csv nicht gefunden (--perturbation-dir setzen)")
         return
     axes[0].set_ylabel("Flip probability of the dominant\nconfiguration (noise = 10 % of SD)")
-    fig.subplots_adjust(left=0.085, right=0.995, top=0.93, bottom=0.155, wspace=0.07)
-    rp.save(fig, "Fig4_perturbation_flip_vs_margin", "double", OUT_DIR)
+    # 07.09.: top 0.93 liess die Panel-Kennung um 0,5 pt aus der Figur ragen.
+    # 30.09.: right 0.995 -> 0.982, die Beschriftung des letzten Teilstrichs (0.60) ragte sonst ueber den Rand.
+    fig.subplots_adjust(left=0.085, right=0.982, top=0.92, bottom=0.155, wspace=0.07)
+    rp.save(fig, "Fig5_perturbation_flip_vs_margin", "double", OUT_DIR)
 
 
 def fig5_ws_reference_coherence(data: dict) -> None:
@@ -340,7 +513,7 @@ def fig5_ws_reference_coherence(data: dict) -> None:
     ax.set_axisbelow(True)
     ax.spines["left"].set_visible(False)
     fig.subplots_adjust(left=0.26, right=0.985, top=0.97, bottom=0.20)
-    rp.save(fig, "Fig5_ws_reference_coherence", "single", OUT_DIR)
+    rp.save(fig, "Fig4_ws_reference_coherence", "single", OUT_DIR)
     print(f"    Fig5: unterhalb der Basislinie P1 {info[1]['below']}, P2 {info[2]['below']}")
 
 
@@ -617,15 +790,15 @@ def figA6_dimension_heatmap(data: dict) -> None:
             ax.text(start + n / 2 - 0.5, -0.65, f"{rp.CLASS_EN[c].replace(' ', chr(10))}\n$n$ = {n}",
                     ha="center", va="bottom", fontsize=rp.FS["small"], color=rp.TEXT, linespacing=1.25)
             start += n
-        ax.set_xlabel(f"{rp.PHASE_LABEL[ph]}: topics sorted by\nconfiguration and weak-signal distance")
+        ax.set_xlabel(f"{rp.PHASE_LABEL[ph]}: topics sorted by\nconfiguration and Weak Signal distance")
         for s_ in ax.spines.values():
             s_.set_visible(False)
         ax.tick_params(length=0)
-        rp.panel(ax, letter, y=1.34)   # ueber den Gruppenbeschriftungen, sonst stoesst (B) an "Latent/mixed" von Panel A
+        rp.panel(ax, letter, y=1.34)   # ueber den Gruppenbeschriftungen, sonst stoesst (B) an "Latent" von Panel A
     fig.subplots_adjust(left=0.20, right=0.985, top=0.775, bottom=0.32, wspace=0.075)
     cax = fig.add_axes([0.35, 0.12, 0.40, 0.035])
     cb = fig.colorbar(im, cax=cax, orientation="horizontal")
-    cb.set_label("Dimension score (z-standardised)"); cb.ax.tick_params(labelsize=rp.FS["tick"], width=0.5); cb.outline.set_linewidth(0.5)
+    cb.set_label("Dimension score (mean of z-standardised indicators)"); cb.ax.tick_params(labelsize=rp.FS["tick"], width=0.5); cb.outline.set_linewidth(0.5)
     rp.save(fig, "FigA6_dimension_heatmap", "double", OUT_DIR, note="ohne Topic-Beschriftung; Werte im Supplement-CSV")
 
 
@@ -672,16 +845,16 @@ def figA8_ws_detail_radars(data: dict, ph: int, n_top: int = 6) -> None:
                 markeredgecolor=rp.CLASS_EDGE["Weak Signal"], markeredgewidth=0.4, zorder=3)
         ax.fill(a, closed(row[DIM_NAMES].tolist()), color=rp.CLASS_COLOR["Weak Signal"], alpha=0.10, zorder=2)
         rp.radial_ticks(ax, [-1.5, 0.0, 1.5, 3.0], ["$-$1.5", "0.0", "1.5", "3.0"], angle_deg=36)
-        kws = ", ".join(w for w, _ in kw.get(idx, [])[:2])
+        kws = lead_terms([w for w, _ in kw.get(idx, [])])
         other = max(row["m_trend"], row["m_ec"], row["m_latent"])
         # pad 6 war zu wenig: die EO-Beschriftung am oberen Rand des Radars lag auf der
         # zweiten Titelzeile und hat den m_ws-Wert ueberdeckt.
-        ax.set_title(f"T{idx}: {kws[:30]}\n$m_{{\\mathrm{{ws}}}}$ = {row['m_ws']:.2f}, $\\Delta$ = {row['m_ws'] - other:.2f}",
+        ax.set_title(f"T{idx}: {kws}\n$m_{{\\mathrm{{ws}}}}$ = {row['m_ws']:.2f}, $\\Delta$ = {row['m_ws'] - other:.2f}",
                      fontsize=rp.FS["annot"], pad=17, color=rp.TEXT, linespacing=1.3)
         rp.panel(ax, "ABCDEF"[i], polar=True)
     from matplotlib.lines import Line2D
     fig.legend(handles=[Line2D([0], [0], color=rp.CLASS_COLOR["Weak Signal"], marker="o", markersize=3, lw=1.0, label="Topic profile"),
-                        Line2D([0], [0], color=rp.REF_LINE, ls="--", lw=0.7, label="Weak-signal median of the phase")],
+                        Line2D([0], [0], color=rp.REF_LINE, ls="--", lw=0.7, label="Weak Signal median of the phase")],
                loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0.0))
     fig.subplots_adjust(left=0.05, right=0.95, top=0.84, bottom=0.10, hspace=0.72, wspace=0.35)
     rp.save(fig, f"FigA8{'ab'[ph - 1]}_ws_detail_radars_phase{ph}", "double", OUT_DIR)
@@ -947,7 +1120,11 @@ def main() -> None:
     ap.add_argument("--only", default=None, help="kommagetrennte Praefixe, z. B. Fig2,FigA3")
     ap.add_argument("--perturbation-dir", default=None, help="Ordner mit phase1/ und phase2/ (perturbation_*.csv), falls nicht im Output")
     ap.add_argument("--out", default=None, help="Zielordner (Standard figures_rp/ im Pipeline-Ordner)")
+    ap.add_argument("--run-dir", default=None,
+                    help="Laufordner mit output_phase1/2 und output_cross_phase (Standard: Pipeline-Ordner)")
     a = ap.parse_args()
+    if a.run_dir:
+        set_run_dir(Path(a.run_dir))
     if a.out:
         OUT_DIR = Path(a.out).resolve()
     if a.perturbation_dir:
@@ -957,14 +1134,17 @@ def main() -> None:
     def want(name):
         return only is None or any(name.startswith(o) for o in only)
 
-    print(f"Schrift: {rp.active_font()} | Ziel: {OUT_DIR}")
+    print(f"Schrift: {rp.active_font()} | Daten: {P1_DIR.parent} | Ziel: {OUT_DIR}")
     data = {1: load_phase(1), 2: load_phase(2)}
     jobs = [
+        ("FigS1", lambda: figS1_model_interface()),
         ("Fig1", lambda: fig1_configuration_profiles()),
         ("Fig2", lambda: fig2_margin_distribution(data)),
         ("Fig3", lambda: fig3_class_profiles(data)),
-        ("Fig4", lambda: fig4_perturbation_flip(data)),
-        ("Fig5", lambda: fig5_ws_reference_coherence(data)),
+        # 30.09.: Schluessel = Praefix des Dateinamens. fig4_perturbation_flip speichert seit dem
+        # 06.09. "Fig5_...", fig5_ws_reference_coherence "Fig4_..."; vorher waren die Schluessel vertauscht.
+        ("Fig4", lambda: fig5_ws_reference_coherence(data)),
+        ("Fig5", lambda: fig4_perturbation_flip(data)),
         ("Fig6", lambda: fig6_efa_loadings()),
         ("FigA1", lambda: figA1_temporal_evolution(data)),
         ("FigA2", lambda: figA2_extended_tem(data)),

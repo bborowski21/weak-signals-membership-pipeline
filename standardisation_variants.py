@@ -35,7 +35,7 @@ def main():
         z = ind.apply(robust_z, axis=0)
         out = pd.DataFrame(index=ind.index)
         for d, cols in INDICATOR_DIMENSIONS.items():
-            valid = [c for c in cols if c in z.columns and z[c].std() > 0.01]
+            valid = [c for c in cols if c in z.columns and ind[c].std() > 0.01]
             out[d] = z[valid].mean(axis=1) if valid else 0.0
         return out
 

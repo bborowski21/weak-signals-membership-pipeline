@@ -106,13 +106,15 @@ def _compute_memberships_from_dims(
         dim_scores: pd.DataFrame,
         indicator_df: pd.DataFrame,
         k: float = MEMBERSHIP_SIGMOID_K,
-        lambda_wp: float = MEMBERSHIP_LAMBDA_WP) -> pd.DataFrame:
+        lambda_wp: float = MEMBERSHIP_LAMBDA_WP,
+        ec_subindicators: list = None) -> pd.DataFrame:
     from step02_memberships import compute_memberships
     return compute_memberships(
         indicator_df=indicator_df,
         dim_scores=dim_scores,
         lambda_wp=lambda_wp,
         k=k,
+        ec_subindicators=ec_subindicators,
     )
 
 
@@ -125,7 +127,7 @@ def _aggregate_dimensions(indicator_df: pd.DataFrame,
                      index=indicator_df.index, columns=indicator_df.columns)
     out = pd.DataFrame(index=indicator_df.index)
     for dim_name, inds in dims.items():
-        valid = [i for i in inds if i in z.columns and z[i].std() > 0.01]
+        valid = [i for i in inds if i in z.columns and indicator_df[i].std() > 0.01]
         out[dim_name] = z[valid].mean(axis=1) if valid else 0.0
     return out
 
@@ -205,7 +207,9 @@ def growth_rate_rightedge(
     # Durchgriff: Memberships mit de-biased (getrimmtem) Wachstumsindikator
     ind_trim = indicator_df.copy()
     common = R.index.intersection(ind_trim.index)
-    ind_trim.loc[common, "growth_rate"] = R.loc[common, "growth_rate_cagr_trim"]
+    # IP1 wie in step02_indicators.compute_growth_rate: (g + 0,5) / 1,5, auf [0, 1] gekappt
+    ind_trim.loc[common, "growth_rate"] = np.clip(
+        (R.loc[common, "growth_rate_cagr_trim"] + 0.5) / 1.5, 0, 1)
     memb_trim = _compute_memberships_from_dims(
         _aggregate_dimensions(ind_trim), ind_trim)
 
@@ -469,30 +473,18 @@ def bertopic_hyperparameter_sensitivity(
 
 def indicator_ablation(baseline_memberships: pd.DataFrame,
                         indicator_df: pd.DataFrame) -> pd.DataFrame:
+    from step02_memberships import EC_SUBINDICATORS
     records = []
     for ind in indicator_df.columns:
         ind_df_reduced = indicator_df.drop(columns=[ind])
         dims_reduced = _aggregate_dimensions(ind_df_reduced)
+        # Ein EC-Subindikator wird auch aus der Emerging-Concept-Membership entfernt
+        # (vorher blieb m_ec unveraendert, rho_m_ec = 1,0).
+        ec_cols = [c for c in EC_SUBINDICATORS if c != ind]
         new_memb = _compute_memberships_from_dims(
             dim_scores=dims_reduced, indicator_df=ind_df_reduced,
-        ) if ind not in {"temporal_novelty", "growth_rate",
-                           "citation_momentum", "field_breadth"} else None
-
-        if new_memb is None:
-            try:
-                new_memb = _compute_memberships_from_dims(
-                    dim_scores=dims_reduced, indicator_df=indicator_df,
-                )
-            except Exception:
-                records.append({
-                    "indicator_removed": ind,
-                    **{f"rho_{c}": np.nan for c in MEMBERSHIP_COLS},
-                    "rho_mean": np.nan, "rho_min": np.nan,
-                    "n_common": 0,
-                    "note": "EC-Subindikator; m_ec nicht direkt eliminierbar",
-                })
-                continue
-
+            ec_subindicators=ec_cols,
+        )
         rhos = _spearman_per_membership(baseline_memberships, new_memb)
         records.append({"indicator_removed": ind, **rhos})
     return pd.DataFrame(records).sort_values("rho_mean", ascending=True)

@@ -14,11 +14,11 @@ Verwendung:
     rp.save(fig, "Fig2_margin_distribution", width="double")
 
 Palette (validiert mit dem dataviz-Validator, alle Paare, Weissflaeche):
-    Weak signal      #bb4717  (Vermillion, OKLCH L 0.55)
-    Emerging concept #07519d  (Blau, L 0.44)
+    Weak Signal      #bb4717  (Vermillion, OKLCH L 0.55)
+    Emerging Concept #07519d  (Blau, L 0.44)
     Trend            #d6a20a  (Gold, L 0.74; Kontrast auf Weiss 2.3:1, deshalb
                               immer mit dunklem Rand oder Linientyp)
-    Latent/mixed     #808080  (Grau, Restklasse)
+    Latent           #808080  (Grau, Restklasse)
     Schlechtestes CVD-Paar (protan/deutan) Delta E 11.8, Normalsicht >= 16.8;
     Graustufenwerte 100 / 68 / 160 / 128 (0 bis 255), also auch im Druck trennbar.
 Zweitkodierung ist Pflicht: Marker o / s / ^ / D, Linientypen -, --, -., :,
@@ -98,8 +98,11 @@ REF_LINE = "#7a7a7a"
 
 # --------------------------------------------------------------- Klassen
 CLASS_ORDER = ["Weak Signal", "Emerging Concept", "Trend", "Latent/Mixed"]  # Pipeline-Schluessel
-CLASS_EN = {"Weak Signal": "Weak signal", "Emerging Concept": "Emerging concept",
-            "Trend": "Trend", "Latent/Mixed": "Latent/mixed"}
+# Anzeigenamen. Ben schreibt die vier Konfigurationen im Manuskript durchgehend gross
+# (Entscheidung 06.09.), und die vierte heisst dort "Latent", nicht "Latent/mixed";
+# der Schluessel "Latent/Mixed" bleibt der Pipeline-Name und wird nicht angefasst.
+CLASS_EN = {"Weak Signal": "Weak Signal", "Emerging Concept": "Emerging Concept",
+            "Trend": "Trend", "Latent/Mixed": "Latent"}
 CLASS_COLOR = {"Weak Signal": "#bb4717", "Emerging Concept": "#07519d",
                "Trend": "#d6a20a", "Latent/Mixed": "#808080"}
 CLASS_EDGE = {"Weak Signal": "#6e2a0d", "Emerging Concept": "#032f5e",
@@ -170,13 +173,43 @@ def figure(width: str = "double", height_mm: float = 70.0, nrows: int = 1, ncols
     return fig, axes
 
 
-def panel(ax, letter: str, x: float = -0.02, y: float = 1.02, polar: bool = False) -> None:
-    """Panel-Kennung (A), (B) ... links oberhalb der Achse, fett, 9 pt."""
-    if polar:
-        x, y = -0.12, 1.05
-    ax.text(x, y, f"({letter})", transform=ax.transAxes, fontsize=FS["panel"],
-            fontweight="bold", ha="right" if not polar else "left", va="bottom", color=TEXT)
+def panel(ax, letter: str, x: float | None = None, y: float | None = None,
+          polar: bool = False, pad_pt: float = 5.0) -> None:
+    """Panel-Kennung (A), (B) ... links oberhalb der Achse, fett, 9 pt.
 
+    Der vertikale Abstand ist in PUNKTEN gesetzt, nicht als Anteil der
+    Achsenhoehe. Grund (gemessen am 07.09.2026): das fruehere y = 1.02 sind
+    zwei Prozent der Achsenhoehe, und bei den flachen Achsen dieses Projekts
+    waren das nur 2,1 bis 2,9 pt, also unter einem Millimeter. Die Kennung
+    stiess dadurch an die Grafik. Betroffen waren acht Abbildungen: FigA10
+    (2,1 pt), FigA11 (2,2), FigA1 und FigA3 (2,3), Fig2 (2,5), FigA4 (2,6),
+    Fig5 (2,9) und FigA2 (3,0). Mit pad_pt bleibt der Abstand gleich, egal wie
+    hoch die Achse ist.
+
+    y kann weiterhin explizit gesetzt werden; dann gilt die alte, relative
+    Logik. Das brauchen die beiden Abbildungen, deren Kennung ueber
+    Gruppenbeschriftungen stehen muss (FigA6 mit y = 1.34, FigA7 mit y = 1.12).
+    Polare Achsen bleiben ebenfalls bei der relativen Logik, weil dort die
+    Achsenoberkante nicht die Oberkante der Zeichnung ist.
+    """
+    if polar:
+        if x is None:
+            x = -0.12
+        if y is None:
+            y = 1.05
+        ax.text(x, y, f"({letter})", transform=ax.transAxes, fontsize=FS["panel"],
+                fontweight="bold", ha="left", va="bottom", color=TEXT)
+        return
+    if x is None:
+        x = -0.02
+    if y is not None:
+        ax.text(x, y, f"({letter})", transform=ax.transAxes, fontsize=FS["panel"],
+                fontweight="bold", ha="right", va="bottom", color=TEXT)
+        return
+    ax.annotate(f"({letter})", xy=(x, 1.0), xycoords="axes fraction",
+                xytext=(0, pad_pt), textcoords="offset points",
+                fontsize=FS["panel"], fontweight="bold", ha="right", va="bottom",
+                color=TEXT, annotation_clip=False)
 
 def labels_on_top(ax, pad: float = 1.8) -> None:
     """Stellt Achsenbeschriftungen frei und legt sie ueber Gitter, Rahmen und Daten.

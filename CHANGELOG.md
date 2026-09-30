@@ -2,6 +2,103 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
+## v2.4.1
+
+Korrekturen aus dem Systemcheck vom 30.09.2026. Keine Zahl im Manuskript ändert sich. Berichtigt sind die
+Reihenfolge der Faktorkorrelationen und die Kommunalitäten der EFA (Laufdateien von Schritt 3 und
+Abbildung `FigA4_factor_correlations`, Panel A), zwei Rechenwege der Sensitivitätsanalyse, die erst bei
+einem neuen Lauf von Schritt 5 wirken, und drei Stellen ohne Wirkung auf den berichteten Lauf. Neu im
+Repo sind die Skripte, mit denen die Abbildungen, Tabelle S3 und die Klassenanteile unter den
+Nullmodellen des Manuskripts entstanden sind, sowie der Treiber des berichteten Laufs. Schritt 3 (EFA)
+des berichteten Laufs ist mit diesem Stand neu gerechnet; zu den übrigen Schritten siehe
+„Berichtigung zu v2.4“ unten.
+
+### Behoben
+
+- **EFA: Faktorkorrelationen in falscher Reihenfolge** (`step03_efa_pca.py`). factor_analyzer 0.5.1
+  sortiert nach der Oblimin-Rotation die Spalten der Mustermatrix nach erklärter Varianz um, die
+  Faktorkorrelationen `phi_` aber nicht; `run_efa` beschriftete `phi_` trotzdem mit F1 bis Fk der
+  Mustermatrix. Φ wird jetzt in die Reihenfolge der Musterspalten gebracht, über die Permutation, für die
+  Muster mal Φ die Strukturmatrix ergibt. Betroffen waren `efa_phi_4f.csv` und `efa_phi_5f.csv` in
+  Phase 1 und `efa_phi_5f.csv` in Phase 2 sowie Panel A von `FigA4_factor_correlations`; Phase 2 mit vier
+  Faktoren war zufällig richtig. Mustermatrizen, Faktorzahlen und die größten Beträge der
+  Faktorkorrelationen in den Lösungen der Abbildung (0,35 und 0,19) bleiben gleich.
+- **EFA: Kommunalitäten bei obliquer Rotation** (`step03_efa_pca.py`). `get_communalities()` liefert die
+  Zeilensumme der quadrierten Musterladungen; bei korrelierten Faktoren ist die Kommunalität
+  diag(P Φ P'). Die gemeinsame Varianz der vier Lösungen steigt dadurch um 1,1 bis 4,2 Prozentpunkte
+  (Phase 1 mit fünf Faktoren von 56,6 auf 60,8 Prozent). Ein Heywood-Fall (h² > 1) wird gemeldet, im
+  berichteten Lauf bei `temporal_novelty` in Phase 1.
+- **Ablation der Emerging-Concept-Subindikatoren** (`step02_memberships.py`, `step05_sensitivity.py`).
+  Die Ablation entfernte einen der vier Subindikatoren von m_ec (DS1, IP1, IP2, IP3) nur aus seiner
+  Dimension, nicht aus der Emerging-Concept-Membership; `compute_memberships` hat dafür den optionalen
+  Parameter `ec_subindicators`. Bei einem neuen Lauf von Schritt 5 sinkt rho_m_ec der vier EC-Zeilen in
+  `sensitivity_ablation.csv` von 1,0 auf 0,88 bis 0,92 (Phase 1) und 0,86 bis 0,93 (Phase 2); rho_min,
+  die im Supplement berichtete Größe, bleibt in allen Zeilen gleich.
+- **Endjahrtest** (`step05_sensitivity.py`) setzte den rohen CAGR in die Spalte `growth_rate` statt des
+  transformierten IP1; jetzt (g + 0,5)/1,5, auf [0, 1] gekappt, wie in Schritt 2. Im berichteten Lauf
+  ergibt der Test dieselben Wechsel (5 und 17).
+- **Drei Stellen ohne Wirkung auf den berichteten Lauf** (`step02_indicators.py`, `step05_sensitivity.py`,
+  `generate_ws_topic_tables.py`, `standardisation_variants.py`): Der Filter „Mindeststreuung 0,01“ prüfte
+  die Standardabweichung der z-Werte, die nach der Standardisierung 1 ist, und schloss damit nur
+  konstante Indikatoren aus; er prüft jetzt die Rohwerte wie `EFA_MIN_VARIANCE`. `extract_keywords`
+  verwirft leere Einträge („a; b;“). DS3 bricht unter pandas 3 nicht mehr ab, wenn einem Topic der
+  Dokumenttyp fehlt. Im berichteten Lauf: kleinste Roh-Standardabweichung 0,034 und 0,043, keine leeren
+  Keyword-Einträge, jedes Topic mit Dokumenttyp.
+
+### Geändert
+
+- `paper_figures_rp.py` und `rp_style.py`: die Fassung, mit der die Abbildungen des Manuskripts gebaut
+  sind; sie lag bis v2.4 außerhalb des Repos. Gegenüber v2.4: Auswahl- und Dateinamen von `Fig4` und
+  `Fig5` wie im Manuskript, neu `FigS1_model_interface`, Konfigurationsnamen wie im Manuskript (Weak
+  Signal, Emerging Concept, Trend, Latent), Abstand der Panelkennungen in Punkten, Option `--run-dir`;
+  dazu vom 30.09.: die Margin-Achse von `Fig2` und `Fig5` folgt den Daten, die Paneltitel von `FigA8a`
+  brechen nicht mehr mitten im Wort ab, die Farbskala von `FigA6` heißt „Dimension score (mean of
+  z-standardised indicators)“. `FigA9` behält die Geometrie aus v2.4 (140 × 110 mm). Geprüft auf den
+  Laufdateien: `FigA9` ist pixelgleich mit dem Bau aus v2.4, alle anderen Abbildungen sind pixelgleich
+  mit der bisher außerhalb gepflegten Fassung (ausgenommen `FigA1`, die Topiczuordnungen je Publikation
+  braucht).
+- `build_supplement.py`: Spalte `configuration` mit den Namen des Manuskripts, Option `--run-dir`,
+  Dimensionsscores in der README der Datendateien als Mittel z-standardisierter Indikatoren beschrieben.
+- `requirements.txt`: Bereiche auf die Major-Versionen des berichteten Laufs (numpy 2, pandas 3,
+  sentence-transformers 5); neu pillow und tabulate (Schritt 3b und 5 schreiben Markdown-Tabellen);
+  gestrichen spacy, nltk, statsmodels, plotly, tqdm und pyyaml, die kein Modul importiert. Python ab 3.11.
+- `run_all_phases.py`: Der Hilfetext nennt eine gültige Schritt-ID (`5.2` statt `5a.2`).
+  `generate_synthetic_artifacts.py`: Die Ausgabe nennt 16 statt 17 Indikatoren.
+- `README.md`: Ablauf des berichteten Laufs, rho_t über `step02b_run_with_kati.py`, Beschreibung von
+  Schritt 0 und 0a, Aufruf des Smoke-Tests, Repository-Struktur mit den Skripten außerhalb des
+  berichteten Laufs, Installation ohne spacy, Zitation auf v2.4.1.
+
+### Hinzugefügt
+
+- `nullmodel_class_shares.py`: Klassenanteile unter den beiden Nullmodellen mit 95-Prozent-Intervall und
+  zweiseitigem p-Wert, wie im Robustheitsabschnitt des Manuskripts berichtet; aus dem Laufordner
+  bytegleich mit `klassenanteile_null.csv` des berichteten Laufs.
+- `make_table_s3.py`: Tabelle S3 des Supplements (die drei führenden c-TF-IDF-Begriffe je Topic mit der
+  dominanten Konfiguration) aus `topic_keywords.csv` und `signal_memberships.csv`; aus dem Laufordner
+  der Variante prior bytegleich mit der Tabelle im Supplement.
+- `berichteter_lauf/`: der Treiber `neulauf_voll.py`, mit dem der berichtete Lauf gerechnet ist
+  (unverändert, Prüfsumme wie im Laufprotokoll), mit einer README zu Stufen, Aufruf und Ordnerannahmen.
+
+### Berichtigung zu v2.4
+
+- „Der im Manuskript berichtete Lauf ist mit diesem Stand gerechnet“ gilt für 46 der 51 Skripte, die das
+  Laufprotokoll `herkunft.json` erfasst. Fünf Dateien wurden nach dem Lauf geändert (SHA-256, die ersten
+  16 Stellen, Lauf gegen Tag v2.4):
+  - `config.py` (`08285b26e762e0dc` gegen `80f284447f659d39`): der Standard von `REVIEW_ABSENCE_PRIOR`,
+    den im Lauf der Treiber je Variante setzte, und die nachgetragene Revision des Sprachmodells;
+  - `step01_topic_modeling.py` (`afd6470917e837bd` gegen `75e89c77bb97f688`): lädt das Modell in dieser
+    Revision; der Lauf lud all-MiniLM-L6-v2 ohne festgelegte Revision;
+  - `step03_efa_pca.py` (`8bd95d1afd02fd69` gegen `619f67f6395cf13c`): der Aufsatz für scikit-learn 1.8,
+    den im Lauf der Treiber vorschaltete, steht seit v2.4 in der Datei;
+  - `build_supplement.py` (`c2a00198f9b8cdc5` gegen `f4716fd2b2dccf4c`): Dateinamen ohne S-Nummern, Inhalt
+    bytegleich;
+  - `pruefe_reproduzierbarkeit.py` (`18013a1d4353be2f` gegen `58318fee940e12bf`): Optionen `--dir` und
+    `--out`, neutral formuliertes Urteil. Die Belegdateien `reproduzierbarkeit_phase1.json` und
+    `reproduzierbarkeit_phase2.json` im Tag v2.4 sind mit dieser Fassung auf den Einheiten des
+    berichteten Laufs geschrieben.
+- Die Robustheitszahlen in den Einträgen zu v2.4 stammen, wie dort vermerkt, aus dem Lauf vom 21.05.2026,
+  nicht aus dem berichteten Lauf; dessen Werte stehen in seinen Ausgabedateien und im Manuskript.
+
 ## v2.4
 
 Stand des Manuskripts. v2.4 behebt die Zählung der Reviews in DS3 (unten unter „Behoben“),

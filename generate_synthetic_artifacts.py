@@ -187,7 +187,7 @@ def build_indicators(df: pd.DataFrame, labels: np.ndarray,
     from step02_indicators import compute_all_indicators
     print("  TEM-Metriken (proportions + tem) ...", flush=True)
     tem_df, proportions = compute_tem_metrics(df, labels)
-    print("  compute_all_indicators (17 Indikatoren) ...", flush=True)
+    print("  compute_all_indicators (16 Indikatoren) ...", flush=True)
     ind_df = compute_all_indicators(
         df=df, labels=labels,
         embeddings_sbert=emb, embeddings_reduced=reduced,
@@ -256,7 +256,7 @@ def main() -> int:
                              noise_scale=args.noise_scale)
     print(f"      embeddings.shape = {emb.shape}")
 
-    print("\n[3/4] Baseline UMAP + HDBSCAN + 17 Indikatoren ...")
+    print("\n[3/4] Baseline UMAP + HDBSCAN + 16 Indikatoren ...")
     labels, reduced = build_baseline(df, emb)
     ind_df, _props, _tem = build_indicators(df, labels, emb, reduced)
 
@@ -277,7 +277,7 @@ def main() -> int:
         out_path = Path(args.output_dir) / "sensitivity_parameter_hparam.csv"
         out.to_csv(out_path, index=False)
         print(f"\n[smoke] Ergebnisse gespeichert: {out_path}")
-        print("\n--- Spearman-rho (mean ueber 17 Indikatoren) ---")
+        print("\n--- Spearman-rho (mean ueber 16 Indikatoren) ---")
         print(out[["param", "value", "n_topics",
                     "n_matched_pairs", "spearman_rho_mean"]]
               .to_string(index=False))

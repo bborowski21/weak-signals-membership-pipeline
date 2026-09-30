@@ -75,7 +75,7 @@ def gini(values: np.ndarray) -> float:
 def extract_keywords(series: pd.Series, top_n: int = 20) -> set:
     kws = []
     for kw_str in series.dropna():
-        kws.extend([k.strip().lower() for k in kw_str.split(";")])
+        kws.extend([k.strip().lower() for k in kw_str.split(";") if k.strip()])
     return set([k for k, _ in Counter(kws).most_common(top_n)])
 
 
@@ -306,7 +306,8 @@ def compute_review_absence(df: pd.DataFrame, topic_ids: list,
     counts = {}
     for tid in topic_ids:
         types = df_t.loc[df_t["topic"] == tid, "Document Type"].dropna()
-        counts[tid] = (int(types.map(_is_review).sum()), len(types))
+        # astype(bool): unter pandas 3 ergibt die Summe einer leeren Zeichenkettenserie sonst ''
+        counts[tid] = (int(types.map(_is_review).astype(bool).sum()), len(types))
 
     results = {}
     if prior == "symmetric":
@@ -663,8 +664,10 @@ def compute_dimension_scores(indicator_df: pd.DataFrame) -> pd.DataFrame:
 
     dim_scores = pd.DataFrame(index=indicator_df.index)
     for dim_name, indicators in INDICATOR_DIMENSIONS.items():
+        # Mindeststreuung auf den Rohwerten (wie EFA_MIN_VARIANCE in step03); nach der
+        # z-Standardisierung haette jede nicht konstante Spalte die Standardabweichung 1
         valid = [ind for ind in indicators if ind in z_scores.columns
-                 and z_scores[ind].std() > 0.01]
+                 and indicator_df[ind].std() > 0.01]
         if valid:
             dim_scores[dim_name] = z_scores[valid].mean(axis=1)
         else:

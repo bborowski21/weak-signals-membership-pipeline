@@ -35,16 +35,20 @@ def compute_memberships(
     dim_scores: pd.DataFrame,
     lambda_wp: float = MEMBERSHIP_LAMBDA_WP,
     k: float = MEMBERSHIP_SIGMOID_K,
+    ec_subindicators: list = None,
 ) -> pd.DataFrame:
+    """ec_subindicators: Indikatoren der Emerging-Concept-Membership (Standard EC_SUBINDICATORS);
+    die Ablation in step05 uebergibt die Liste ohne den entfernten Indikator."""
     z_dim = dim_scores.apply(robust_z, axis=0)
 
-    missing_ec = [c for c in EC_SUBINDICATORS if c not in indicator_df.columns]
+    ec_cols = list(EC_SUBINDICATORS if ec_subindicators is None else ec_subindicators)
+    missing_ec = [c for c in ec_cols if c not in indicator_df.columns]
     if missing_ec:
         raise KeyError(
             f"EC-Subindikatoren fehlen in indicator_df: {missing_ec}. "
             f"Verfügbare Spalten: {list(indicator_df.columns)}"
         )
-    z_ec = indicator_df[EC_SUBINDICATORS].apply(robust_z, axis=0)
+    z_ec = indicator_df[ec_cols].apply(robust_z, axis=0)
 
     z_core_mean = z_dim[CORE_DIMS].mean(axis=1)
     z_wp        = z_dim[WP_DIM]

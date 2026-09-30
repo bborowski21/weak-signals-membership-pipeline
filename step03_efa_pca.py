@@ -22,6 +22,7 @@ Pruefung. Der V2-Stand liegt im Backup sbert_pipeline_membership_BACKUP_2026-06-
 
 import pandas as pd
 import numpy as np
+import itertools
 import json
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -186,6 +187,31 @@ def n_factors_consecutive(eigenvalues: np.ndarray, thresholds: np.ndarray) -> in
 # Extraktion
 # ---------------------------------------------------------------------------
 
+def _phi_in_musterreihenfolge(fa, n_factors: int) -> np.ndarray:
+    """Faktorkorrelationen in der Reihenfolge der Musterspalten.
+
+    factor_analyzer (0.5.1) sortiert nach der Rotation die Spalten von loadings_ und structure_
+    nach erklaerter Varianz um, phi_ aber nicht: phi_ bleibt in der Reihenfolge der Rotation.
+    Wegen structure_ = loadings_ @ Phi (beides in Musterreihenfolge) ist die richtige
+    Permutation diejenige, fuer die loadings_ @ phi_[perm, perm] die Strukturmatrix ergibt.
+    """
+    phi = getattr(fa, "phi_", None)
+    struktur = getattr(fa, "structure_", None)
+    if phi is None:
+        return np.eye(n_factors)
+    if struktur is None or n_factors == 1:
+        return np.asarray(phi)
+    beste, rest = None, np.inf
+    for perm in itertools.permutations(range(n_factors)):
+        kandidat = phi[np.ix_(perm, perm)]
+        r = float(np.abs(struktur - fa.loadings_ @ kandidat).max())
+        if r < rest:
+            beste, rest = kandidat, r
+    if rest > 1e-6:
+        raise RuntimeError(f"Phi-Reihenfolge nicht bestimmbar (Rest {rest:.2e})")
+    return beste
+
+
 def run_efa(z_df: pd.DataFrame, n_factors: int) -> dict:
     """Gemeinsame Faktorenanalyse: minres-Extraktion, Oblimin-Rotation."""
     fa = FactorAnalyzer(n_factors=n_factors, method=EFA_METHOD, rotation=EFA_ROTATION)
@@ -193,10 +219,16 @@ def run_efa(z_df: pd.DataFrame, n_factors: int) -> dict:
 
     cols = [f"F{i+1}" for i in range(n_factors)]
     pattern = pd.DataFrame(fa.loadings_, index=z_df.columns, columns=cols)
-    phi = pd.DataFrame(getattr(fa, "phi_", np.eye(n_factors)), index=cols, columns=cols)
-    communalities = pd.Series(fa.get_communalities(), index=z_df.columns,
-                              name="communality")
-    # Gemeinsame Varianz: rotationsinvariant ueber Communalities
+    phi_werte = _phi_in_musterreihenfolge(fa, n_factors)
+    phi = pd.DataFrame(phi_werte, index=cols, columns=cols)
+    # Kommunalitaet h2 = diag(P Phi P'); bei obliquer Rotation ist das nicht die Zeilensumme
+    # der quadrierten Musterladungen (die liefert fa.get_communalities()). Gleich der
+    # Zeilensumme der unrotierten Loesung, also rotationsinvariant.
+    communalities = pd.Series((fa.loadings_ * (fa.loadings_ @ phi_werte)).sum(axis=1),
+                              index=z_df.columns, name="communality")
+    heywood = communalities[communalities > 1.0]
+    if len(heywood):
+        print(f"  Hinweis: Heywood-Fall (h2 > 1) bei {', '.join(heywood.index)}")
     var_common = float(communalities.sum() / len(z_df.columns))
 
     return {"fa": fa, "pattern": pattern, "phi": phi,
