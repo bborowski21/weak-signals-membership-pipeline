@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import pickle
+import re
 from pathlib import Path
 from scipy.stats import entropy
 from collections import Counter
@@ -12,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from config import (
     OUTPUT_DIR, DATA_PATH, CURRENT_YEAR,
     PHASE_YEAR_MIN, PHASE_YEAR_MAX,
-    Y_MIN, Y_MAX, Y_CUTOFF, REVIEW_ABSENCE_ALPHA,
+    Y_MIN, Y_MAX, Y_CUTOFF, REVIEW_ABSENCE_ALPHA, REVIEW_ABSENCE_PRIOR,
     INDICATOR_DIMENSIONS, DIM_NAMES,
 )
 
@@ -270,23 +271,60 @@ def compute_terminological_instability(df: pd.DataFrame, topic_ids: list,
     return results
 
 
+def _is_review(doc_type) -> bool:
+    """Dokumenttyp Review, unabhängig von der Schreibweise.
+
+    Die KATI-Lieferung führt die Typen klein ("review"), der WoS-Export groß
+    ("Review"); mehrteilige Angaben zählen ebenfalls ("Review; Early Access"
+    im WoS-Export, "early access article|review" bei KATI).
+    """
+    if not isinstance(doc_type, str):
+        return False
+    return any(part.strip().lower() == "review"
+               for part in re.split(r"[;|]", doc_type))
+
+
 def compute_review_absence(df: pd.DataFrame, topic_ids: list,
                             labels: np.ndarray,
-                            alpha: float = None) -> dict:
+                            alpha: float = None,
+                            prior: str = None) -> dict:
+    """DS3: eins minus geglätteter Review-Anteil je Topic.
+
+    DS3 = 1 - (r + 2 alpha m) / (n + 2 alpha); r = Reviews, n = Publikationen mit Dokumenttyp.
+    prior="symmetric":   m = 0,5, also 1 - (r + alpha) / (n + 2 alpha).
+    prior="phase_share": m = Review-Anteil über alle übergebenen Topics (Summe r / Summe n).
+    Ohne Angabe gelten REVIEW_ABSENCE_ALPHA und REVIEW_ABSENCE_PRIOR aus config.py.
+    """
     df_t = df.copy()
     df_t["topic"] = labels
     alpha = REVIEW_ABSENCE_ALPHA if alpha is None else float(alpha)
-    results = {}
+    prior = REVIEW_ABSENCE_PRIOR if prior is None else prior
+    if prior not in ("symmetric", "phase_share"):
+        raise ValueError(f"review_absence: unbekannter Prior {prior!r} "
+                         "(erlaubt: 'symmetric', 'phase_share')")
 
+    counts = {}
     for tid in topic_ids:
         types = df_t.loc[df_t["topic"] == tid, "Document Type"].dropna()
-        n_t = len(types)
-        if n_t == 0:
-            results[tid] = 0.5
-            continue
-        review_count = int((types.astype(str).str.strip() == "Review").sum())
-        results[tid] = 1.0 - (review_count + alpha) / (n_t + 2 * alpha)
+        counts[tid] = (int(types.map(_is_review).sum()), len(types))
 
+    results = {}
+    if prior == "symmetric":
+        for tid, (review_count, n_t) in counts.items():
+            if n_t == 0:
+                results[tid] = 0.5
+                continue
+            results[tid] = 1.0 - (review_count + alpha) / (n_t + 2 * alpha)
+        return results
+
+    n_all = sum(n_t for _, n_t in counts.values())
+    p0 = sum(r for r, _ in counts.values()) / n_all if n_all else 0.5
+    strength = 2 * alpha
+    for tid, (review_count, n_t) in counts.items():
+        if n_t == 0:
+            results[tid] = 1.0 - p0
+            continue
+        results[tid] = 1.0 - (review_count + strength * p0) / (n_t + strength)
     return results
 
 

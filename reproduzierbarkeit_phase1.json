@@ -1,48 +1,48 @@
 {
   "phase": 1,
   "topics_berichtet": 146,
-  "noise_berichtet": 7246,
+  "noise_berichtet": 6770,
   "A": {
     "topics_a": 146,
     "topics_b": 146,
-    "noise_a": 7246,
-    "noise_b": 7246,
+    "noise_a": 6770,
+    "noise_b": 6770,
     "identisch": true,
     "adjusted_rand": 1.0,
     "sekunden": 1.1
   },
   "B": {
-    "identisch": false,
-    "max_abweichung": 3.7833995819091797,
-    "mittlere_abweichung": 0.028392301872372627,
-    "anteil_zellen_gleich": 6.439357352136257e-06,
+    "identisch": true,
+    "max_abweichung": 0.0,
+    "mittlere_abweichung": 0.0,
+    "anteil_zellen_gleich": 1.0,
     "korrelation_je_achse": [
-      0.9993314007788915,
-      0.9988417036990732,
-      0.9985482254259533,
-      0.9966872854421738,
-      0.9965478079591965,
-      0.9953261447860553,
-      0.9981453094644539,
-      0.9845948126451982,
-      0.997722286962185,
-      0.9940354173383202,
-      0.9941878238275631,
-      0.9973442501954602,
-      0.8937647637488432,
-      0.9767545395570522,
-      0.9793643778615981
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.9999999999999998,
+      1.0,
+      0.9999999999999999,
+      1.0,
+      1.0,
+      0.9999999999999998,
+      0.9999999999999999,
+      1.0,
+      1.0,
+      0.9999999999999998
     ],
-    "sekunden": 12.0
+    "sekunden": 12.3
   },
   "C": {
     "topics_a": 146,
-    "topics_b": 143,
-    "noise_a": 7246,
-    "noise_b": 7093,
-    "identisch": false,
-    "adjusted_rand": 0.8752873400154132,
+    "topics_b": 146,
+    "noise_a": 6770,
+    "noise_b": 6770,
+    "identisch": true,
+    "adjusted_rand": 1.0,
     "sekunden": 0.3
   },
-  "urteil": "UMAP ist der Ort der Abweichung. HDBSCAN reproduziert den berichteten Lauf aus den gespeicherten reduzierten Vektoren exakt."
+  "urteil": "Beide Stufen reproduzieren exakt: In dieser Umgebung ergibt ein Neulauf dieselben Topics wie der gespeicherte Lauf. Weicht ein anderer Lauf trotzdem ab, liegt es weder an der Umgebung noch an diesen beiden Schritten, sondern am Code, der ihn erzeugt hat."
 }

@@ -144,7 +144,7 @@ def fig1_configuration_profiles() -> None:
     profiles = {  # ordinal 1 bis 5, stilisiert nach Thesis Kap. 3 (Framework-Schema)
         "Weak Signal":      [5.0, 4.7, 4.6, 4.2, 5.0],
         "Emerging Concept": [3.2, 3.2, 3.1, 2.7, 4.0],
-        "Trend":            [1.2, 1.3, 1.3, 1.8, 2.7],
+        "Trend":            [1.2, 1.3, 1.3, 1.8, 3.5],   # IP 27.09.: ueber der Mitte, unter EC (Formel und Abb. 3)
     }
     fig, ax = rp.figure("single", height_mm=88, polar=True)
     ang = radar_axes(ax, labels, rmax=5.2, label_pad=6)
@@ -594,7 +594,7 @@ def figA5_indicator_correlations(ph: int) -> None:
 
 
 def figA6_dimension_heatmap(data: dict) -> None:
-    fig, axes = rp.figure("double", height_mm=86, ncols=2, gridspec_kw={"width_ratios": [146, 265]})
+    fig, axes = rp.figure("double", height_mm=86, ncols=2, gridspec_kw={"width_ratios": [len(data[1]["classified"]), len(data[2]["classified"])]})
     order = CLS   # gleiche Reihenfolge wie ueberall (rp.CLASS_ORDER)
     for ax, ph, letter in zip(axes, (1, 2), "AB"):
         df = data[ph]["classified"].copy()
@@ -630,7 +630,7 @@ def figA6_dimension_heatmap(data: dict) -> None:
 
 
 def figA7_membership_heatmap(data: dict) -> None:
-    fig, axes = rp.figure("double", height_mm=72, ncols=2, gridspec_kw={"width_ratios": [146, 265]})
+    fig, axes = rp.figure("double", height_mm=72, ncols=2, gridspec_kw={"width_ratios": [len(data[1]["classified"]), len(data[2]["classified"])]})
     for ax, ph, letter in zip(axes, (1, 2), "AB"):
         df = data[ph]["classified"].sort_values("margin", ascending=False)
         cols = ["m_ws", "m_ec", "m_trend", "m_latent"]
@@ -709,9 +709,9 @@ def figA9_structure_compare(data: dict, q: float = 0.90) -> None:
     # die Phasenbezeichnung viermal in voller Laenge.
     from matplotlib.lines import Line2D
     hs = [Line2D([0], [0], color=rp.PHASE_COLOR[1], lw=1.0, marker="o", markersize=2.8,
-                 label=f"{rp.PHASE_LABEL[1]}, $n$ = 146"),
+                 label=f"{rp.PHASE_LABEL[1]}, $n$ = {len(data[1]['classified'])}"),
           Line2D([0], [0], color=rp.PHASE_COLOR[2], lw=2.2, marker="s", markersize=5.0,
-                 label=f"{rp.PHASE_LABEL[2]}, $n$ = 265"),
+                 label=f"{rp.PHASE_LABEL[2]}, $n$ = {len(data[2]['classified'])}"),
           Line2D([0], [0], color=rp.TEXT_MUTED, lw=1.2, ls="-", label="90th percentile"),
           Line2D([0], [0], color=rp.TEXT_MUTED, lw=1.0, ls=":", marker="o", markersize=2.4,
                  markerfacecolor="white", label="Median")]

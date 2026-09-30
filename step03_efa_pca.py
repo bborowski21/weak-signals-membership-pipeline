@@ -27,6 +27,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.stats import chi2
 from factor_analyzer import FactorAnalyzer
+import factor_analyzer.factor_analyzer as _fa_modul
+import factor_analyzer.confirmatory_factor_analyzer as _cfa_modul
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -38,6 +40,31 @@ from config import (
     OUTPUT_DIR, EFA_MIN_VARIANCE, EFA_PARALLEL_N_ITER, DIM_COLORS,
     DIM_SHORT_CODES, FIG_DPI,
 )
+
+
+# Vertraeglichkeit factor_analyzer 0.5.1 mit scikit-learn ab 1.8. factor_analyzer ruft
+# check_array(force_all_finite=...); scikit-learn hat den Parameter in 1.6 in ensure_all_finite
+# umbenannt und in 1.8 entfernt. Der Aufsatz uebersetzt nur das Schluesselwort und greift nur,
+# wenn der alte Name fehlt; an der Rechnung aendert er nichts (geprueft: Muster, Phi und
+# Kommunalitaeten bitgleich mit scikit-learn 1.5 ohne Aufsatz).
+def _kompat_sklearn_check_array() -> bool:
+    import inspect
+    import sklearn.utils.validation as _v
+    if "force_all_finite" in inspect.signature(_v.check_array).parameters:
+        return False
+    _orig = _v.check_array
+
+    def check_array(*args, force_all_finite=None, **kwargs):
+        if force_all_finite is not None and "ensure_all_finite" not in kwargs:
+            kwargs["ensure_all_finite"] = force_all_finite
+        return _orig(*args, **kwargs)
+
+    _fa_modul.check_array = check_array
+    _cfa_modul.check_array = check_array
+    return True
+
+
+KOMPAT_SKLEARN_AKTIV = _kompat_sklearn_check_array()
 
 
 THEORETICAL_MAPPING = {

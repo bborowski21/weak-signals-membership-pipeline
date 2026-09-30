@@ -1,27 +1,21 @@
 # Eingefrorene Laufumgebung der F3-Pipeline
 #
-# Erzeugt am 12.09.2026 aus den Metadaten des venv, das den berichteten Lauf
-# vom 21.05.2026 gerechnet hat (siehe logs/run_full_20260521_214136.log).
-# Python 3.12, macOS arm64.
+# Erzeugt am 30.09.2026 aus den Metadaten des venv, das den im Manuskript berichteten Lauf
+# gerechnet hat (vollstaendiger Neulauf vom 29./30.09.2026 mit v2.4). Python 3.12.7, macOS arm64.
+# 64 Distributionen; gegenueber der Fassung vom 12.09.2026 neu ist genau eine:
+#     factor_analyzer==0.5.1   (installiert 2026-09-29 mit --no-deps; Schritt 3)
+# factor_analyzer 0.5.1 ruft check_array(force_all_finite=...), das scikit-learn 1.8.0 nicht mehr
+# kennt. step03_efa_pca.py uebersetzt dafuer das Schluesselwort (Aufsatz, am Ergebnis bitgleich
+# mit scikit-learn 1.5 ohne Aufsatz). Die Revision des Sprachmodells steht in config.py
+# (SBERT_MODEL_REVISION).
 #
 # Wiederherstellen:
 #     python3.12 -m venv .venv && . .venv/bin/activate
 #     pip install -r requirements.lock.txt
 #
-# WICHTIG, damit diese Datei nicht mehr verspricht als sie haelt:
-# Sie bildet den Stand von HEUTE ab, nicht zwingend den vom 21.05.2026.
-# Nach dem Referenzlauf angefasst wurden genau 3 Distributionen:
-#     wrapt==2.2.1   (installiert 2026-06-05)
-#     gensim==4.4.0   (installiert 2026-06-05)
-#     smart_open==7.6.1   (installiert 2026-06-05)
-# Alle drei gehoeren zum gensim-Stack und werden ausschliesslich von
-# step03c_topic_quality.py verwendet (Kohaerenzmasse). Am Topic-Modell,
-# an den Indikatoren und an den Memberships ist keines von ihnen beteiligt.
-#
 # Die Obergrenzen in requirements.txt sind an vier Stellen ueberschritten
-# (numpy, pandas, sentence-transformers, plotly). Das ist ein Widerspruch
-# in der Dokumentation, nicht die Ursache einer Abweichung: Alle vier waren
-# bereits am 12./13.04.2026 installiert, also VOR dem Referenzlauf.
+# (numpy, pandas, sentence-transformers, plotly). Massgeblich fuer den berichteten Lauf ist
+# diese Datei; alle vier waren seit dem 12./13.04.2026 unveraendert installiert.
 
 annotated-doc==0.0.4
 anyio==4.13.0
@@ -30,6 +24,7 @@ certifi==2026.2.25
 click==8.3.2
 contourpy==1.3.3
 cycler==0.12.1
+factor_analyzer==0.5.1
 filelock==3.25.2
 fonttools==4.62.1
 fsspec==2026.3.0

@@ -32,6 +32,10 @@ OUTPUT_DIR = BASE_DIR / "output"
 
 
 SBERT_MODEL = "all-MiniLM-L6-v2"
+# Revision des Modells auf dem Hugging Face Hub (Commit), mit der der berichtete Lauf gerechnet ist.
+# Sie unterscheidet sich von der Vorgängerrevision c9745ed1 (06.03.2025) nur in der Modellkarte.
+# None lädt den jeweils neuesten Stand.
+SBERT_MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 
 UMAP_N_COMPONENTS = 15
 UMAP_N_NEIGHBORS = 15
@@ -52,6 +56,12 @@ Y_MAX = 2025
 Y_CUTOFF = 2025
 
 REVIEW_ABSENCE_ALPHA = 5
+# Mittelwert der Glättung von DS3 (review_absence), Stärke jeweils 2 * alpha:
+#   "phase_share"  Standard ab v2.4 und Stand des Manuskripts: Review-Anteil der Phase über alle
+#                  Topics, p0 = Summe r / Summe n; DS3 = 1 - (r + 2 alpha p0) / (n + 2 alpha).
+#   "symmetric"    0,5; DS3 = 1 - (r + alpha) / (n + 2 alpha). Formel bis v2.3.1 (dort noch ohne
+#                  gezählte Reviews, siehe CHANGELOG v2.4 unter „Behoben“).
+REVIEW_ABSENCE_PRIOR = "phase_share"
 
 INDICATOR_DIMENSIONS = {
     "Epistemische Offenheit": [

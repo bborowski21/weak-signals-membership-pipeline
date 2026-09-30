@@ -75,9 +75,19 @@ def _read_kati_csv(path: Path) -> pd.DataFrame:
 
 
 def clean_doctype(value: str) -> str:
+    """Eigentlicher Dokumenttyp aus der KATI-Typenliste ("|"-getrennt).
+
+    "early access article" ist in Web of Science ein Status, kein Dokumenttyp.
+    Steht er vor dem eigentlichen Typ ("early access article|review"), zählt
+    der eigentliche Typ; nur wenn kein anderer Eintrag vorhanden ist, bleibt er.
+    """
     if not isinstance(value, str) or not value.strip():
         return ""
-    return value.split("|")[0].strip()
+    parts = [p.strip() for p in value.split("|") if p.strip()]
+    if not parts:
+        return ""
+    typen = [p for p in parts if p.lower() != "early access article"]
+    return (typen or parts)[0]
 
 
 def normalize_wos_categories(value: str) -> str:

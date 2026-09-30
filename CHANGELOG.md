@@ -2,7 +2,25 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
-## Unveröffentlicht
+## v2.4
+
+Stand des Manuskripts. v2.4 behebt die Zählung der Reviews in DS3 (unten unter „Behoben“),
+stellt die Glättung von DS3 auf den Review-Anteil der Phase um und hält die Laufumgebung samt
+Revision des Sprachmodells fest. Der im Manuskript berichtete Lauf ist mit diesem Stand gerechnet
+(vollständiger Neulauf vom 29./30.09.2026, Schritt 1 bis Schritt 6 samt Robustheitsexperimenten).
+Seine Zahlen weichen von v2.3.1 ab, auch auf der Topic-Ebene (146 und 256 statt 146 und 265
+Topics, 105 statt 101 gegenseitig beste Paare). Zahlen, die in den Einträgen unten beim Hinzufügen
+einzelner Skripte genannt sind, stammen aus dem Lauf vom 21.05.2026.
+
+### Geändert: Standard der Glättung von DS3
+
+- `REVIEW_ABSENCE_PRIOR` in `config.py` steht jetzt auf `"phase_share"`: DS3 = 1 − (r + 2α·p₀)/(n + 2α)
+  mit p₀ = Σr/Σn, dem Review-Anteil der Phase über alle Topics (im berichteten Lauf 2,04 und
+  3,22 Prozent), bei unveränderter Stärke 2α = 10. Der symmetrische Prior (Mittelwert 0,5) zieht
+  jedes Topic zur Hälfte, obwohl nur 2 bis 3 Prozent der Publikationen Reviews sind; DS3 bliebe
+  damit auch nach der korrigierten Zählung an die Topicgröße gebunden (Spearman mit log n 0,90 und
+  0,77 gegen 0,12 und −0,01 unter `"phase_share"`, Korrelation mit PE1 −0,75 und −0,63 gegen
+  −0,16 und −0,01; Phase 1 und Phase 2). `"symmetric"` bleibt als Option erhalten.
 
 ### Hinzugefügt
 
@@ -49,6 +67,30 @@
   Phase, Dimensionsscores, Memberships, Indikatorwerte) nach `supplement_rp/` (gitignored).
   Enthält ausschließlich abgeleitete Größen, keine Rohdaten und keine bibliographischen Angaben.
 
+- **Schalter für den Prior von DS3** (`REVIEW_ABSENCE_PRIOR` in `config.py`, Parameter `prior` in
+  `compute_review_absence`): `"phase_share"` (Standard ab v2.4, siehe oben) oder `"symmetric"`
+  (Mittelwert 0,5, DS3 = 1 − (r + α)/(n + 2α), die Formel bis v2.3.1). Das α-Gitter der
+  Sensitivitätsanalyse wirkt in beiden Fällen als Stärke 2α.
+- **Revision des Sprachmodells festgeschrieben**: `SBERT_MODEL_REVISION` in `config.py`, der Commit
+  `1110a243fdf4706b3f48f1d95db1a4f5529b4d41` von all-MiniLM-L6-v2 auf dem Hugging Face Hub
+  (01.06.2026); `compute_embeddings` in `step01_topic_modeling.py` lädt das Modell in dieser
+  Revision. Gegenüber der Vorgängerrevision `c9745ed1` (06.03.2025) ist nur die Modellkarte
+  geändert, Gewichte, Konfiguration und Tokenizer sind gleich.
+- `step06_cross_phase_transitions.py` (Schritt 6): Übergänge der dominanten Konfiguration über die
+  gegenseitig besten Paare, als CSV und JSON nach `output_cross_phase/`.
+- `run_phase_boundary_stability.py`: verschiebt die Phasengrenze über 2014 bis 2020 und vergleicht
+  jede Aufteilung gegen einen unter denselben Einstellungen neu gerechneten Referenzschnitt
+  (Supplement-Tabelle S6 und Abbildung S16); `make_figS16.py` zeichnet die Abbildung aus den
+  Ausgabedateien, ohne hart eingetragene Zahlen.
+- `pruefe_reproduzierbarkeit.py`: hält HDBSCAN und UMAP getrennt gegen die gespeicherten Ausgaben
+  eines Laufs und zeigt so, in welchem Schritt ein Neulauf abweicht.
+- `requirements.lock.txt`: die 64 Distributionen der Laufumgebung des berichteten Laufs
+  (Python 3.12.7, macOS arm64), einschließlich factor_analyzer 0.5.1.
+- `analyse_konfidenz.py` sowie `RELEASE_v2.3.md` und `RELEASE_v2.3.1.md`: Nachrechnung der drei
+  Kippbedingungen zur Match-Konfidenz aus `topic_matches_full.csv` und die Release-Notizen der
+  beiden Vorgängerversionen.
+- `CITATION.cff`: Zitationsangaben (Titel, Autor mit ORCID, Lizenz, Version) für GitHub und Zenodo.
+
 ### Geändert
 
 - `plot_migration_sankey` in `step04b_cross_phase_viz.py` durch eine Publikationsfassung ersetzt.
@@ -65,7 +107,44 @@
   30/32/12/27, Spaltensummen 23/10/18/50, Diagonale 38/101).
 
 - `.gitignore`: `figures_rp/` und `supplement_rp/` ergänzt, damit die generierten Abbildungs- und
-  Supplement-Artefakte lokal bleiben.
+  Supplement-Artefakte lokal bleiben; dazu alle Ausgabeordner über `output_*/*` und alle
+  `*.npy`-Dateien. Einzige Ausnahme ist `output_phase_boundary/phase_boundary_stability.json`.
+- `build_supplement.py`: Die Datendateien heißen jetzt wie im Supplement des Manuskripts,
+  `indicator_correlations_phase1.csv` und `_phase2.csv`, `topic_dimension_scores.csv`,
+  `topic_memberships.csv` und `topic_indicators.csv`, ohne die Vorsilben S1 bis S4; die S-Nummern
+  bezeichnen im Supplement Tabellen und Abbildungen. Der Inhalt ist unverändert (byte-gleich
+  gegen die Ausgabe der Vorgängerfassung geprüft).
+- `paper_figures_rp.py`: FigA6 und FigA7 nehmen die Spaltenbreiten, FigA9 die Topiczahlen der
+  Legende aus den Daten statt der fest eingetragenen 146 und 265. FigA9 wird auf 140 × 110 mm
+  gebaut, damit die Achsenbeschriftung vollständig steht. In Abbildung 1 steht der Trend beim
+  Wirkungspotenzial bei 3,5 statt 2,7, über der Skalenmitte und unter Emerging Concept.
+- `pruefe_reproduzierbarkeit.py`: Optionen `--dir` (Ordner mit `model_results.pkl`) und `--out`;
+  reproduzieren beide Stufen exakt, ist das Urteil jetzt neutral formuliert statt auf eine
+  Abweichung des Stabilitätslaufs bezogen.
+- Belegdateien auf den berichteten Lauf gezogen: `output_phase_boundary/phase_boundary_stability.json`,
+  `reproduzierbarkeit_phase1.json`, `reproduzierbarkeit_phase2.json` und `topic_quality_results.json`.
+- `README.md`: Zitation, Konfiguration, Installation und Versionierung auf v2.4.
+
+### Behoben
+
+- **DS3 (Review-Absenz, in der Thesis EP3) zählte keine Reviews.** `compute_review_absence` in
+  `step02_indicators.py` verglich `Document Type` mit `"Review"`; die aufbereiteten KATI-Daten
+  führen die Typen klein (`review`). Die Zählung war in allen Topics null und der Indikator damit
+  eine reine Funktion der Topicgröße, 1 − α/(n_t + 2α). Der Vergleich ist jetzt unabhängig von der
+  Schreibweise und erkennt mehrteilige Angaben (`Review; Early Access` im WoS-Export,
+  `early access article|review` bei KATI). Im Analysekorpus stehen 418 (Phase 1) und 1.351
+  (Phase 2) Reviews, davon 289 und 861 in Topics. Betroffen sind alle vorliegenden Ausgaben ab
+  Schritt 2, auch die des Laufs vom 21.05.2026; der im Manuskript berichtete Lauf ist mit v2.4
+  neu gerechnet.
+- `clean_doctype` in `prepare_kati_data.py` übernahm den ersten Eintrag der KATI-Typenliste; bei
+  `early access article|review` ging der Typ Review verloren (Phase 2: 35 Records der Lieferung,
+  davon 10 im Analysekorpus). „early access article“ gilt jetzt als Status, nicht als Typ.
+  Wirksam erst nach erneuter Aufbereitung mit `python prepare_kati_data.py --force`.
+- `step03_efa_pca.py` läuft mit scikit-learn ab 1.8. factor_analyzer 0.5.1 ruft
+  `check_array(force_all_finite=...)`; scikit-learn hat den Parameter in 1.6 umbenannt und in 1.8
+  entfernt. Ein Aufsatz übersetzt das Schlüsselwort, wenn der alte Name fehlt. Muster, Phi und
+  Kommunalitäten sind damit bitgleich mit scikit-learn 1.5 ohne Aufsatz. factor_analyzer stand in
+  `requirements.txt`, fehlte aber in der Laufumgebung und in `requirements.lock.txt`.
 
 ## v2.3.1
 

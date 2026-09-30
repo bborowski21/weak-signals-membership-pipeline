@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Weak-signal membership pipeline: topic model, sixteen indicators and four configurational memberships"
+version: v2.4
+date-released: 2026-09-30
+authors:
+  - family-names: Borowski
+    given-names: Ben-Nicholas
+    affiliation: University of Vienna
+    orcid: "https://orcid.org/0009-0001-1496-5407"
+license: MIT
+repository-code: "https://github.com/bborowski21/weak-signals-membership-pipeline"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20283613
+    description: "Concept DOI; resolves to the latest version. Version DOIs are listed on the Zenodo record."
+abstract: >-
+  Analysis code for a membership-based characterisation of weak signals in
+  scientific literature. The pipeline builds a topic model of a Web of Science
+  corpus (SBERT, UMAP, HDBSCAN, c-TF-IDF), computes sixteen bibliometric
+  indicators across five dimensions and assigns each topic four continuous
+  memberships for the configurations Weak Signal, Trend, Emerging Concept and
+  Latent. It includes the cross-phase topic matching, the sensitivity analyses,
+  the perturbation experiment and the null models. The bibliographic records are
+  licensed and not part of the repository.
+keywords:
+  - weak signals
+  - foresight
+  - bibliometrics
+  - topic modelling
+  - emerging topics

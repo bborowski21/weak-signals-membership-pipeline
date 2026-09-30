@@ -13,20 +13,24 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 
 ## Zitation
 
-Das Repositorium ist über zwei Stände zitierbar. Die Masterarbeit
-referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript den
-Stand `v2.3.1`. Beide liegen unter derselben Concept-DOI
+Zwei Arbeiten zitieren das Repositorium, jede mit eigenem Stand. Die
+Masterarbeit referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript seit
+dem 30.09.2026 den Stand `v2.4` (davor `v2.3.1`). Alle Stände liegen unter
+derselben Concept-DOI
 [10.5281/zenodo.20283613](https://doi.org/10.5281/zenodo.20283613), die stets
 auf die jeweils neueste Version auflöst; das Badge oben zeigt diese
 Concept-DOI. Die versionsgenauen DOIs stehen auf der Zenodo-Seite unter
 *Versions*.
 
-Für den Stand `v2.3.1` (Manuskript) bitte zitieren als:
+Für den Stand `v2.4` (Manuskript) bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
 > model, sixteen indicators and four configurational memberships*
-> (Version v2.3.1) [Software]. Zenodo.
-> https://doi.org/10.5281/zenodo.22128929
+> (Version v2.4) [Software]. Zenodo.
+> https://doi.org/10.5281/zenodo.20283613
+>
+> Die versionsgenaue DOI von v2.4 vergibt Zenodo mit dem Release; sie steht
+> dann auf der Zenodo-Seite unter *Versions*.
 
 BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
 verlangt es klassisches BibTeX; unter biblatex kann er auf `software`
@@ -37,18 +41,19 @@ geändert werden.
   author    = {Borowski, Ben-Nicholas},
   title     = {Weak-signal membership pipeline: topic model, sixteen indicators
                and four configurational memberships},
-  version   = {v2.3.1},
+  version   = {v2.4},
   year      = {2026},
-  month     = aug,
+  month     = sep,
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.22128929},
-  url       = {https://doi.org/10.5281/zenodo.22128929}
+  doi       = {10.5281/zenodo.20283613},
+  url       = {https://doi.org/10.5281/zenodo.20283613}
 }
 ```
 
 Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
 `version = {v2.2}`, dem deutschen Titel des damaligen Deposits und der
-zugehörigen Versions-DOI.
+zugehörigen Versions-DOI; für `v2.3.1` mit der Versions-DOI
+[10.5281/zenodo.22128929](https://doi.org/10.5281/zenodo.22128929).
 
 ## Architektur
 
@@ -144,6 +149,14 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
+Die exakte Umgebung des im Manuskript berichteten Laufs (Python 3.12.7,
+macOS arm64, 64 Distributionen) steht in `requirements.lock.txt`:
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.lock.txt
+```
+
 ## Daten
 
 Die F3-Pipeline operiert auf einem Web-of-Science-Korpus, der über
@@ -177,9 +190,12 @@ Zentrale Hyperparameter in `config.py`:
 
 ```python
 SBERT_MODEL              = "all-MiniLM-L6-v2"
+SBERT_MODEL_REVISION     = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"  # Hub-Commit (ab v2.4)
 HDBSCAN_MIN_CLUSTER_SIZE = 25
 MEMBERSHIP_SIGMOID_K     = 1.0    # Trennschärfe-Parameter (V2)
 MEMBERSHIP_LAMBDA_WP     = 0.5    # WP-Gewichtung in m_trend (V2)
+REVIEW_ABSENCE_ALPHA     = 5      # Stärke der Glättung von DS3: 2 * alpha
+REVIEW_ABSENCE_PRIOR     = "phase_share"  # Mittelwert: Review-Anteil der Phase (ab v2.4)
 SENSITIVITY_HYBRID_ALPHA_GRID = [0.4, 0.6, 0.8]  # alpha-Grid der Cross-Phase-Sensitivitaet
 ```
 
@@ -238,8 +254,11 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
 über das Git-Tag `v2.2` fixiert und besitzt eine eigene Zenodo-DOI.
-Das daraus hervorgegangene Manuskript referenziert `v2.3.1`, ebenfalls
-mit eigener Zenodo-DOI. Beide Tags bleiben unverändert bestehen.
+Das daraus hervorgegangene Manuskript referenziert seit dem 30.09.2026
+`v2.4` (davor `v2.3.1`), jeweils mit eigener Zenodo-DOI. Alle Tags bleiben
+unverändert bestehen. v2.4 behebt die Zählung der Reviews in DS3, stellt die
+Glättung von DS3 auf den Review-Anteil der Phase um und hält Laufumgebung und
+Revision des Sprachmodells fest; Einzelheiten in `CHANGELOG.md`.
 v2.2 vereinheitlicht die Step-Benennung auf ein durchgängig
 sequenzielles Schema und ergänzt das Diagnostikmodul
 `step02c_citation_topic_profile.py` (deskriptive Citation-Topic-

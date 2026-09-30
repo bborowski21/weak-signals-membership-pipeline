@@ -31,6 +31,11 @@ Lesart:
 Aufruf:
     python pruefe_reproduzierbarkeit.py            # Phase 1
     python pruefe_reproduzierbarkeit.py --phase 2
+    python pruefe_reproduzierbarkeit.py --phase 1 --dir <Ausgabeordner der Phase>
+
+Mit --dir liest das Skript model_results.pkl aus einem anderen Ordner als
+output_phase<N>, etwa aus einem Neulauf in eigenem Ausgabeordner. Die
+Ergebnisdatei steht weiter im Pipeline-Ordner, sofern --out nichts anderes sagt.
 """
 
 from __future__ import annotations
@@ -67,8 +72,12 @@ def vergleiche_labels(a: np.ndarray, b: np.ndarray) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", type=int, default=1, choices=(1, 2))
+    ap.add_argument("--dir", default=None,
+                    help="Ordner mit model_results.pkl (Standard: output_phase<N>)")
+    ap.add_argument("--out", default=None,
+                    help="Ergebnisdatei (Standard: reproduzierbarkeit_phase<N>.json)")
     args = ap.parse_args()
-    out_dir = BASE_DIR / f"output_phase{args.phase}"
+    out_dir = Path(args.dir) if args.dir else BASE_DIR / f"output_phase{args.phase}"
 
     from config import (UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS, UMAP_MIN_DIST,
                         UMAP_METRIC, HDBSCAN_MIN_CLUSTER_SIZE,
@@ -150,15 +159,16 @@ def main() -> int:
         urteil = ("Schon HDBSCAN reproduziert nicht. Dann liegt es an der "
                   "hdbscan-Version oder an Threading, nicht am uebrigen Code.")
     elif ergebnis["B"]["identisch"]:
-        urteil = ("Beide Stufen reproduzieren exakt. Die Abweichung des "
-                  "Stabilitaetslaufs kann dann nicht aus Umgebung oder "
-                  "Nichtdeterminismus stammen; zu pruefen ist der Code, der "
-                  "den berichteten Lauf erzeugt hat.")
+        urteil = ("Beide Stufen reproduzieren exakt: In dieser Umgebung ergibt "
+                  "ein Neulauf dieselben Topics wie der gespeicherte Lauf. "
+                  "Weicht ein anderer Lauf trotzdem ab, liegt es weder an der "
+                  "Umgebung noch an diesen beiden Schritten, sondern am Code, "
+                  "der ihn erzeugt hat.")
     else:
         urteil = "Unerwartete Kombination, Zahlen von Hand ansehen."
     ergebnis["urteil"] = urteil
 
-    out = BASE_DIR / f"reproduzierbarkeit_phase{args.phase}.json"
+    out = Path(args.out) if args.out else BASE_DIR / f"reproduzierbarkeit_phase{args.phase}.json"
     out.write_text(json.dumps(ergebnis, indent=2), encoding="utf-8")
     log("=" * 66)
     log(urteil)

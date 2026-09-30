@@ -14,7 +14,7 @@ import hdbscan
 from config import (
     DATA_PATH, OUTPUT_DIR,
     PHASE_YEAR_MIN, PHASE_YEAR_MAX,
-    SBERT_MODEL, UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS,
+    SBERT_MODEL, SBERT_MODEL_REVISION, UMAP_N_COMPONENTS, UMAP_N_NEIGHBORS,
     UMAP_MIN_DIST, UMAP_METRIC,
     HDBSCAN_MIN_CLUSTER_SIZE, HDBSCAN_MIN_SAMPLES, HDBSCAN_CLUSTER_METHOD,
     CTFIDF_TOP_N_WORDS,
@@ -47,9 +47,10 @@ def load_and_clean(path: Path) -> pd.DataFrame:
 
 
 
-def compute_embeddings(texts: list[str], model_name: str) -> np.ndarray:
-    print(f"\nLade SBERT-Modell: {model_name}...")
-    model = SentenceTransformer(model_name)
+def compute_embeddings(texts: list[str], model_name: str,
+                       revision: str | None = SBERT_MODEL_REVISION) -> np.ndarray:
+    print(f"\nLade SBERT-Modell: {model_name} (Revision {revision or 'neueste'})...")
+    model = SentenceTransformer(model_name, revision=revision)
 
     device = model.device
     print(f"  Device: {device}")

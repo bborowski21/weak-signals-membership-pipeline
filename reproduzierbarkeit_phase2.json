@@ -1,48 +1,48 @@
 {
   "phase": 2,
-  "topics_berichtet": 265,
-  "noise_berichtet": 15868,
+  "topics_berichtet": 256,
+  "noise_berichtet": 15583,
   "A": {
-    "topics_a": 265,
-    "topics_b": 265,
-    "noise_a": 15868,
-    "noise_b": 15868,
+    "topics_a": 256,
+    "topics_b": 256,
+    "noise_a": 15583,
+    "noise_b": 15583,
     "identisch": true,
     "adjusted_rand": 1.0,
     "sekunden": 1.5
   },
   "B": {
-    "identisch": false,
-    "max_abweichung": 4.873979091644287,
-    "mittlere_abweichung": 0.02142258547246456,
-    "anteil_zellen_gleich": 1.5822909991376515e-06,
+    "identisch": true,
+    "max_abweichung": 0.0,
+    "mittlere_abweichung": 0.0,
+    "anteil_zellen_gleich": 1.0,
     "korrelation_je_achse": [
-      0.9993330085104906,
-      0.9990351548026335,
-      0.9985481820178629,
-      0.9985657599837143,
-      0.9974980618030754,
-      0.9988821788461426,
-      0.9953806084230709,
-      0.9983519831724058,
-      0.9975435438331565,
-      0.9976647599864884,
-      0.9980160069006676,
-      0.9840251200576712,
-      0.9856277370025271,
-      0.9965980565879939,
-      0.9964263128896232
+      1.0,
+      1.0,
+      1.0,
+      0.9999999999999999,
+      1.0,
+      1.0,
+      1.0,
+      0.9999999999999998,
+      1.0,
+      0.9999999999999998,
+      0.9999999999999999,
+      1.0,
+      1.0,
+      1.0,
+      1.0
     ],
-    "sekunden": 20.0
+    "sekunden": 20.4
   },
   "C": {
-    "topics_a": 265,
-    "topics_b": 269,
-    "noise_a": 15868,
-    "noise_b": 15671,
-    "identisch": false,
-    "adjusted_rand": 0.8980084215224837,
-    "sekunden": 0.6
+    "topics_a": 256,
+    "topics_b": 256,
+    "noise_a": 15583,
+    "noise_b": 15583,
+    "identisch": true,
+    "adjusted_rand": 1.0,
+    "sekunden": 0.7
   },
-  "urteil": "UMAP ist der Ort der Abweichung. HDBSCAN reproduziert den berichteten Lauf aus den gespeicherten reduzierten Vektoren exakt."
+  "urteil": "Beide Stufen reproduzieren exakt: In dieser Umgebung ergibt ein Neulauf dieselben Topics wie der gespeicherte Lauf. Weicht ein anderer Lauf trotzdem ab, liegt es weder an der Umgebung noch an diesen beiden Schritten, sondern am Code, der ihn erzeugt hat."
 }

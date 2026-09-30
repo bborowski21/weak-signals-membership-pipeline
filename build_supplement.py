@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 """build_supplement.py
 
-Erzeugt die Supplement-Tabellen zu den Abbildungen A.5 bis A.7 des Manuskripts.
+Erzeugt die Datendateien des Supplements zum Manuskript (Indikatorkorrelationen,
+Dimensionswerte, Memberships, Indikatorwerte je Topic).
 Enthalten sind ausschliesslich abgeleitete Groessen (Indikatorwerte, Dimensionsscores,
 Memberships, Margins, c-TF-IDF-Schluesselwoerter); keine Rohdaten und keine
 bibliographischen Angaben aus Web of Science.
 
 Aufruf im Pipeline-Ordner:  python3 build_supplement.py [--out supplement_rp]
 Schreibt:
-  S1_indicator_correlations_phase1.csv / _phase2.csv   (16 x 16, Pearson r)
-  S2_topic_dimension_scores.csv                        (Topic, Phase, 5 Dimensionen, Konfiguration, Margin)
-  S3_topic_memberships.csv                             (Topic, Phase, 4 Memberships, Margin, Margin-Klasse)
-  S4_topic_indicators.csv                              (Topic, Phase, 16 Indikatoren)
+  indicator_correlations_phase1.csv / _phase2.csv   (16 x 16, Pearson r)
+  topic_dimension_scores.csv                        (Topic, Phase, 5 Dimensionen, Konfiguration, Margin)
+  topic_memberships.csv                             (Topic, Phase, 4 Memberships, Margin, Margin-Klasse)
+  topic_indicators.csv                              (Topic, Phase, 16 Indikatoren)
   README_supplement.md
+Die Dateinamen tragen seit v2.4 keine S-Nummern mehr; die S-Nummern des Supplements
+bezeichnen dort Tabellen und Abbildungen.
 """
 from __future__ import annotations
 
@@ -60,7 +63,7 @@ def main() -> None:
 
         corr = ind.corr().round(4)
         corr.index.name = "indicator"
-        corr.to_csv(out / f"S1_indicator_correlations_phase{ph}.csv")
+        corr.to_csv(out / f"indicator_correlations_phase{ph}.csv")
 
         base = pd.DataFrame({"topic": mem.index, "phase": ph, "period": PHASE_YEARS[ph],
                              "keywords_top3": [kws.get(t, "") for t in mem.index],
@@ -71,9 +74,9 @@ def main() -> None:
         inds.append(pd.concat([base[["topic", "phase", "period", "keywords_top3"]],
                                ind.round(6).reset_index(drop=True)], axis=1))
 
-    pd.concat(dims).to_csv(out / "S2_topic_dimension_scores.csv", index=False)
-    pd.concat(membs).to_csv(out / "S3_topic_memberships.csv", index=False)
-    pd.concat(inds).to_csv(out / "S4_topic_indicators.csv", index=False)
+    pd.concat(dims).to_csv(out / "topic_dimension_scores.csv", index=False)
+    pd.concat(membs).to_csv(out / "topic_memberships.csv", index=False)
+    pd.concat(inds).to_csv(out / "topic_indicators.csv", index=False)
 
     n1, n2 = len(dims[0]), len(dims[1])
     (out / "README_supplement.md").write_text(f"""# Supplementary data
@@ -83,19 +86,19 @@ dimension scores, membership values and margins. No bibliographic records, no ra
 
 | File | Content | Rows |
 |---|---|---|
-| `S1_indicator_correlations_phase1.csv` | Pearson correlations between the 16 indicators, Phase 1 ({PHASE_YEARS[1]}) | 16 |
-| `S1_indicator_correlations_phase2.csv` | Pearson correlations between the 16 indicators, Phase 2 ({PHASE_YEARS[2]}) | 16 |
-| `S2_topic_dimension_scores.csv` | Dimension scores (z-standardised) per topic, both phases, with dominant configuration and margin | {n1 + n2} |
-| `S3_topic_memberships.csv` | The four membership values per topic, both phases, with margin and margin class | {n1 + n2} |
-| `S4_topic_indicators.csv` | The 16 indicator values per topic, both phases | {n1 + n2} |
+| `indicator_correlations_phase1.csv` | Pearson correlations between the 16 indicators, Phase 1 ({PHASE_YEARS[1]}) | 16 |
+| `indicator_correlations_phase2.csv` | Pearson correlations between the 16 indicators, Phase 2 ({PHASE_YEARS[2]}) | 16 |
+| `topic_dimension_scores.csv` | Dimension scores (z-standardised) per topic, both phases, with dominant configuration and margin | {n1 + n2} |
+| `topic_memberships.csv` | The four membership values per topic, both phases, with margin and margin class | {n1 + n2} |
+| `topic_indicators.csv` | The 16 indicator values per topic, both phases | {n1 + n2} |
 
-Columns common to S2 to S4: `topic` (identifier within the phase), `phase`, `period`,
+Columns common to the three topic-level files: `topic` (identifier within the phase), `phase`, `period`,
 `keywords_top3` (three leading c-TF-IDF terms of the topic).
-S2 and S3 additionally carry `configuration` (argmax of the four memberships), `margin`
+The dimension-score and membership files additionally carry `configuration` (argmax of the four memberships), `margin`
 (difference between the highest and the second-highest membership) and `margin_class`
 (< 0.05, 0.05 to 0.10, >= 0.10).
 
-These tables underlie Figures A.5, A.6 and A.7 and Tables 4.8, 4.9 and 4.12 of the manuscript.
+These tables underlie the results reported in Section 4 of the manuscript and the corresponding supplementary figures.
 Phase 1 contains {n1} topics, Phase 2 contains {n2} topics.
 """, encoding="utf-8")
 
