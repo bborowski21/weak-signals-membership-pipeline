@@ -15,21 +15,21 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 
 Zwei Arbeiten zitieren das Repositorium, jede mit eigenem Stand. Die
 Masterarbeit referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript
-den Stand `v2.4.1` (davor `v2.4` und `v2.3.1`). Alle Stände liegen unter
+den Stand `v2.5` (davor `v2.4.1`, `v2.4` und `v2.3.1`). Alle Stände liegen unter
 derselben Concept-DOI
 [10.5281/zenodo.20283613](https://doi.org/10.5281/zenodo.20283613), die stets
 auf die jeweils neueste Version auflöst; das Badge oben zeigt diese
 Concept-DOI. Die versionsgenauen DOIs stehen auf der Zenodo-Seite unter
 *Versions*.
 
-Für den Stand `v2.4.1` (Manuskript) bitte zitieren als:
+Für den Stand `v2.5` (Manuskript) bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
 > model, sixteen indicators and four configurational memberships*
-> (Version v2.4.1) [Software]. Zenodo.
+> (Version v2.5) [Software]. Zenodo.
 > https://doi.org/10.5281/zenodo.20283613
 >
-> Die versionsgenaue DOI von v2.4.1 vergibt Zenodo mit dem Release; sie steht
+> Die versionsgenaue DOI von v2.5 vergibt Zenodo mit dem Release; sie steht
 > dann auf der Zenodo-Seite unter *Versions*.
 
 BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
@@ -41,7 +41,7 @@ geändert werden.
   author    = {Borowski, Ben-Nicholas},
   title     = {Weak-signal membership pipeline: topic model, sixteen indicators
                and four configurational memberships},
-  version   = {v2.4.1},
+  version   = {v2.5},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.20283613},
@@ -53,7 +53,8 @@ Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
 `version = {v2.2}`, dem deutschen Titel des damaligen Deposits und der
 zugehörigen Versions-DOI; für `v2.3.1` mit der Versions-DOI
 [10.5281/zenodo.22128929](https://doi.org/10.5281/zenodo.22128929), für `v2.4` mit
-[10.5281/zenodo.23058951](https://doi.org/10.5281/zenodo.23058951).
+[10.5281/zenodo.23058951](https://doi.org/10.5281/zenodo.23058951), für `v2.4.1`
+mit [10.5281/zenodo.23070432](https://doi.org/10.5281/zenodo.23070432).
 
 ## Architektur
 
@@ -96,9 +97,11 @@ python run_phase_sensitivity.py 1         # OAT-Sensitivität Phase 1
 
 ### Der im Manuskript berichtete Lauf
 
-Der im Manuskript berichtete Lauf (29./30.09.2026) ist mit dem Treiber
-`berichteter_lauf/neulauf_voll.py` gerechnet; dort beschreibt eine README Stufen,
-Aufruf und Ordnerannahmen. Er rechnet die Schritte von `run_all_phases.py`
+Der im Manuskript berichtete Lauf (30.09.2026, Stand v2.5) ist mit dem Treiber
+`berichteter_lauf/neulauf_voll.py` gerechnet, ab Schritt 2 auf den Einheiten des
+vollständigen Neulaufs vom 29./30.09.2026; dort beschreibt eine README Stufen,
+Aufruf, Ordnerannahmen und die Entstehung des Laufs. Der Treiber rechnet die
+Schritte von `run_all_phases.py`
 (1 und 1b mit `--with-sbert`, dann 2 bis 5c) und dazu, in dieser Reihenfolge,
 `prepare_kati_data.py` und `clean_pipeline_data.py` vor Schritt 1,
 `step02b_run_with_kati.py`, `step03c_topic_quality.py` und
@@ -201,7 +204,7 @@ python generate_synthetic_artifacts.py --output-dir output_smoke --n-docs 500
 ```
 
 Der danach angezeigte Folgeschritt (`run_sensitivity_hparam.py`, ebenso
-`--run-sensitivity`) ist in v2.4.1 nicht lauffähig.
+`--run-sensitivity`) ist in v2.5 nicht lauffähig.
 
 ## Konfiguration
 
@@ -230,7 +233,7 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 | Bereich | Dateien |
 |---|---|
-| Dokumentation | `README.md`, `CHANGELOG.md`, `RELEASE_v2.3.md`, `RELEASE_v2.3.1.md`, `RELEASE_v2.4.md`, `RELEASE_v2.4.1.md`, `CITATION.cff`, `LICENSE` |
+| Dokumentation | `README.md`, `CHANGELOG.md`, `RELEASE_v2.3.md`, `RELEASE_v2.3.1.md`, `RELEASE_v2.4.md`, `RELEASE_v2.4.1.md`, `RELEASE_v2.5.md`, `CITATION.cff`, `LICENSE` |
 | Umgebung | `requirements.txt`, `requirements.lock.txt`, `config.py`, `.gitignore` |
 | Daten | `prepare_kati_data.py`, `text_preprocessing.py`, `clean_pipeline_data.py` |
 | Pipeline | `step01_topic_modeling.py` bis `step06_cross_phase_transitions.py` (Tabelle oben), Wrapper `run_all_phases.py`, `run_phase.py`, `run_phase_indicators.py`, `run_phase_efa.py`, `run_phase_validation.py`, `run_phase_viz.py`, `run_phase_sensitivity.py`, `run_step02c_phases.py` |
@@ -243,9 +246,14 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
 über das Git-Tag `v2.2` fixiert und besitzt eine eigene Zenodo-DOI.
-Das daraus hervorgegangene Manuskript referenziert `v2.4.1` (davor `v2.4`
-und `v2.3.1`), jeweils mit eigener Zenodo-DOI. Alle Tags bleiben
-unverändert bestehen. v2.4.1 berichtigt die Faktorkorrelationen und
+Das daraus hervorgegangene Manuskript referenziert `v2.5` (davor `v2.4.1`,
+`v2.4` und `v2.3.1`); Versionen mit GitHub-Release archiviert Zenodo jeweils
+mit eigener DOI. Alle Tags bleiben unverändert bestehen. v2.5 rechnet EO1
+(`keyword_volatility`) und DS2 (`terminological_instability`) als gewichtete
+Jaccard-Distanz der relativen Keyword-Häufigkeiten und setzt für nicht
+bestimmbare Werte von EO1, DS2 und IP2 den Median der Phase ein; der
+berichtete Lauf ist mit diesem Stand gerechnet, seine Zahlen weichen ab
+Schritt 2 von v2.4.1 ab. v2.4.1 berichtigt die Faktorkorrelationen und
 Kommunalitäten der EFA, zwei Rechenwege der Sensitivitätsanalyse und drei
 Stellen ohne Wirkung auf den berichteten Lauf, nimmt die Skripte für
 Abbildungen, Tabelle S3 und die Klassenanteile unter den Nullmodellen sowie

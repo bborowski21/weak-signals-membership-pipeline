@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "Weak-signal membership pipeline: topic model, sixteen indicators and four configurational memberships"
-version: v2.4.1
-date-released: 2026-09-30
+version: v2.5
+date-released: 2026-10-01
 authors:
   - family-names: Borowski
     given-names: Ben-Nicholas

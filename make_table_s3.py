@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 """Tabelle S3 des Supplements: die drei führenden Begriffe je Topic mit der dominanten Konfiguration.
 
-Liest je Phase topic_keywords.csv (c-TF-IDF-Begriffe mit Gewicht) und signal_memberships.csv eines Laufordners
-und schreibt die LaTeX-Tabelle (longtable mit booktabs), wie sie im Supplement steht. Regel: je Topic die drei
-Begriffe mit dem höchsten Gewicht (stabile Sortierung), dominante Konfiguration = Argmax der vier Memberships.
-Nur abgeleitete Größen, keine Rohdaten.
+Liest je Phase topic_keywords.csv und signal_memberships.csv eines Laufordners und schreibt die LaTeX-Tabelle
+(longtable mit booktabs), wie sie im Supplement steht. topic_keywords.csv stammt aus Schritt 1: Begriffe mit
+Gewicht unter einer TF-IDF-Gewichtung, die auf den Publikationen angepasst und auf die verketteten Titel und
+Abstracts des Topics angewandt ist (kein klassenbasiertes c-TF-IDF). Regel: je Topic die drei Begriffe mit dem
+höchsten Gewicht (stabile Sortierung), dominante Konfiguration = Argmax der vier Memberships. Nur abgeleitete
+Größen, keine Rohdaten.
 
 Aufruf:  python3 make_table_s3.py --run-dir LAUFORDNER [--out supplement_S3_topic_terms.tex]
-   LAUFORDNER enthält output_phase1/ und output_phase2/, z. B. output_neulauf_voll_2026-09-29/prior.
+   LAUFORDNER enthält output_phase1/ und output_phase2/, z. B. output_neulauf_v2.5/prior.
 """
 import argparse
 import re
@@ -20,7 +22,7 @@ import pandas as pd
 MEMB = ["m_ws", "m_ec", "m_trend", "m_latent"]
 NAME = {"m_ws": "Weak Signal", "m_ec": "Emerging Concept", "m_trend": "Trend", "m_latent": "Latent"}
 KOPF = r"""\begin{longtable}{@{}rlp{0.44\textwidth}l@{}}
-\caption{The three leading terms of every topic, by phase, with the dominant configuration. Terms are the highest-weighted c-TF-IDF terms of the topic. Phase~1 comprises @N1@ topics, Phase~2 comprises @N2@. Topic~0 of Phase~2 collects records from outside the field (notes to Table~\ref{tab:s_query}).}\label{tab:s_terms} \\
+\caption{The three leading terms of every topic, by phase, with the dominant configuration. Terms are the highest-weighted terms of the concatenated titles and abstracts of the topic under a TF-IDF weighting fitted on the publications. Phase~1 comprises @N1@ topics, Phase~2 comprises @N2@. Topic~0 of Phase~2 collects records from outside the field (notes to Table~\ref{tab:s_query}).}\label{tab:s_terms} \\
 \toprule
 Topic & Phase & Leading terms & Dominant configuration \\
 \midrule

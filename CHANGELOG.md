@@ -2,6 +2,68 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
+## v2.5
+
+Stand des Manuskripts. EO1 (`keyword_volatility`) und DS2 (`terminological_instability`) messen den Wandel der
+Author Keywords jetzt als gewichtete Jaccard-Distanz ihrer relativen Häufigkeiten, und nicht bestimmbare Werte von
+EO1, DS2 und IP2 (`citation_momentum`) erhalten den Median der Phase. Der im Manuskript berichtete Lauf ist mit
+diesem Stand gerechnet: ein Neulauf vom 30.09.2026 ab Schritt 2 in beiden Varianten von DS3, auf den unverändert
+übernommenen Einheiten des vollständigen Neulaufs vom 29./30.09.2026 (Datenaufbereitung, Schritte 1, 1b, 2b und 3c,
+Reproduzierbarkeitsprüfung). Topics und gegenseitig beste Paare bleiben dieselben; Indikatorwerte, Memberships und
+die Zahlen ab Schritt 2 weichen von v2.4.1 ab. Wie der Lauf entstand und wie er sich wiederholen lässt, beschreibt
+`berichteter_lauf/README.md`.
+
+### Geändert: EO1 und DS2 (`step02_indicators.py`)
+
+- **EO1:** gewichtete Jaccard-Distanz (Ruzicka) zwischen den relativen Häufigkeiten aller Author Keywords der
+  frühen und der späten Hälfte eines Topics (getrennt am Median-Jahr), 1 − Σ min / Σ max. Bis v2.4.1 die
+  Jaccard-Distanz der 20 häufigsten Keywords beider Hälften als Mengen.
+- **DS2:** dieselbe Distanz für jedes Paar aufeinanderfolgender Jahre, gemittelt. Bis v2.4.1 die 15 häufigsten
+  Keywords je Jahr als Mengen.
+- **Nicht bestimmbare Werte.** Verglichen wird nur, wenn beide Seiten Keywords haben. Nicht bestimmbar sind EO1 bei
+  weniger als vier Publikationen oder einer Hälfte ohne Keywords, DS2 bei weniger als drei Publikationsjahren oder
+  ohne ein Jahrespaar mit Keywords auf beiden Seiten, IP2 bei weniger als vier Publikationen oder einer leeren
+  Hälfte. `compute_all_indicators` setzt dafür den Median der Phase ein (0,5, falls in der Phase kein Wert
+  bestimmbar ist) und nennt die betroffenen Topics. Bis v2.4.1 galten feste Werte: Eine Seite ohne Keywords zählte
+  als vollständiger Wechsel (1,0), die übrigen Fälle erhielten 0,5.
+- **Anlass** (Systemcheck vom 30.09.2026): Die Auswahl der häufigsten Keywords hing bei Gleichständen an der Grenze
+  von der Reihenfolge der Datensätze ab, und fehlende Keywords auf einer Seite gingen als vollständiger Wechsel ein.
+  Die gewichtete Distanz nutzt alle Keywords mit ihrer Häufigkeit, braucht weder Grenze noch Regel für Gleichstände
+  und vergleicht nur, was auf beiden Seiten vorliegt.
+- Neu sind `keyword_counts` und `weighted_jaccard_distance` (Summen mit `math.fsum`, unabhängig von der Reihenfolge
+  der Keywords). `compute_keyword_volatility` hat keinen Parameter `top_n` mehr; `extract_keywords` und
+  `jaccard_distance` bleiben erhalten, Schritt 2 ruft sie nicht mehr auf.
+- Geprüft auf künstlichen Daten (Eigenschaften der Distanz, Randfälle, die übrigen 13 Indikatoren bitgleich) und im
+  berichteten Lauf.
+
+### Wirkung auf den berichteten Lauf (Variante prior, Phase 1 und Phase 2)
+
+- Die übrigen 13 Indikatoren sind bitgleich mit dem Lauf vom 29./30.09.2026. EO1 ändert sich bei 125 von 146 und
+  250 von 256 Topics, DS2 bei 133 und 240, IP2 bei einem Topic (Phase 2, T22: keine Publikation nach dem
+  Median-Jahr). Den Median der Phase erhalten EO1 bei 3 und 2 Topics, DS2 bei 8 und 6.
+- Dominante Konfiguration (Weak Signal, Emerging Concept, Trend, Latent): 42, 40, 21, 43 statt 36, 45, 22, 43 in
+  Phase 1 und 68, 56, 51, 81 statt 66, 61, 51, 78 in Phase 2; 14 und 32 Topics wechseln. Margin unter 0,10 haben
+  73 von 146 und 145 von 256 Topics.
+- Von den 105 gegenseitig besten Paaren wechseln 68 die dominante Konfiguration (bisher 74).
+
+### Geändert: Dokumentation und Belege
+
+- `make_table_s3.py`: Beschriftung von Tabelle S3 wie im Supplement. Die führenden Begriffe kommen aus
+  `topic_keywords.csv` von Schritt 1, einer TF-IDF-Gewichtung, die auf den Publikationen angepasst und auf die
+  verketteten Titel und Abstracts des Topics angewandt ist, nicht aus einem klassenbasierten c-TF-IDF; Docstring
+  entsprechend. Aus dem Laufordner der Variante prior bytegleich mit Tabelle S3 des Supplements.
+- `output_phase_boundary/phase_boundary_stability.json` aus dem berichteten Lauf.
+- `README.md` (Zitation, berichteter Lauf, Versionierung), `berichteter_lauf/README.md` (Entstehung des Laufs
+  v2.5, Wiederholung mit diesem Stand), `CITATION.cff`, `RELEASE_v2.5.md`.
+
+### Unverändert
+
+- Alle übrigen Skripte. Der Lauf v2.5 rechnete mit einer Kopie von v2.4.1, in der nur `step02_indicators.py`
+  geändert war, in der Fassung von v2.5.
+- `reproduzierbarkeit_phase1.json`, `reproduzierbarkeit_phase2.json` und `topic_quality_results.json` gelten
+  weiter, weil der Lauf die Einheiten des Laufs vom 29./30.09.2026 übernimmt.
+- `requirements.lock.txt`: Der Lauf v2.5 lief in derselben Umgebung; deren 64 Distributionen entsprechen der Datei.
+
 ## v2.4.1
 
 Korrekturen aus dem Systemcheck vom 30.09.2026. Keine Zahl im Manuskript ändert sich. Berichtigt sind die

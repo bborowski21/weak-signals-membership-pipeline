@@ -1,4 +1,5 @@
 
+import math
 import pandas as pd
 import numpy as np
 import pickle
@@ -73,15 +74,44 @@ def gini(values: np.ndarray) -> float:
 
 
 def extract_keywords(series: pd.Series, top_n: int = 20) -> set:
+    """Top-N-Menge der Author Keywords (EO1 und DS2 bis v2.4.1; Gleichstände nach Zeilenfolge)."""
     kws = []
     for kw_str in series.dropna():
         kws.extend([k.strip().lower() for k in kw_str.split(";") if k.strip()])
     return set([k for k, _ in Counter(kws).most_common(top_n)])
 
 
+def keyword_counts(series: pd.Series) -> Counter:
+    """Häufigkeiten der Author Keywords einer Teilmenge (klein geschrieben, leere Einträge verworfen)."""
+    counts = Counter()
+    for kw_str in series.dropna():
+        counts.update(k.strip().lower() for k in kw_str.split(";") if k.strip())
+    return counts
+
+
+def weighted_jaccard_distance(counts_a: Counter, counts_b: Counter) -> float:
+    """Gewichtete Jaccard-Distanz (Ruzicka) der relativen Häufigkeiten: 1 - Summe min / Summe max.
+
+    Nur für zwei nicht leere Zählungen definiert. 0 bei gleicher Verteilung, 1 ohne gemeinsames Keyword.
+    math.fsum rundet exakt und ist damit unabhängig von der Reihenfolge der Schlüssel.
+    """
+    na, nb = sum(counts_a.values()), sum(counts_b.values())
+    keys = set(counts_a) | set(counts_b)
+    kleinste = math.fsum(min(counts_a.get(k, 0) / na, counts_b.get(k, 0) / nb) for k in keys)
+    groesste = math.fsum(max(counts_a.get(k, 0) / na, counts_b.get(k, 0) / nb) for k in keys)
+    return 1.0 - kleinste / groesste
+
+
 
 def compute_keyword_volatility(df: pd.DataFrame, topic_ids: list,
-                               labels: np.ndarray, top_n: int = 20) -> dict:
+                               labels: np.ndarray) -> dict:
+    """EO1: gewichtete Jaccard-Distanz der Keyword-Häufigkeiten zwischen früher und später Hälfte (Median-Jahr).
+
+    Ab v2.5 über alle Keywords mit ihren relativen Häufigkeiten; bis v2.4.1 Jaccard der 20 häufigsten als
+    Menge, mit Gleichständen nach Zeilenfolge. Fehlen einer Hälfte die Keywords oder hat das Topic weniger
+    als vier Publikationen, ist der Wert nicht bestimmbar (NaN); compute_all_indicators setzt dann den Median
+    der Phase ein (bis v2.4.1: 1,0 bei einseitig fehlenden Keywords, sonst 0,5).
+    """
     df_t = df.copy()
     df_t["topic"] = labels
     results = {}
@@ -91,14 +121,14 @@ def compute_keyword_volatility(df: pd.DataFrame, topic_ids: list,
         years = topic_df["Year"].sort_values()
 
         if len(years) < 4:
-            results[tid] = 0.5
+            results[tid] = np.nan
             continue
 
         mid_year = years.median()
-        kw_early = extract_keywords(topic_df[topic_df["Year"] <= mid_year]["Author Keywords"], top_n)
-        kw_late = extract_keywords(topic_df[topic_df["Year"] > mid_year]["Author Keywords"], top_n)
+        kw_early = keyword_counts(topic_df[topic_df["Year"] <= mid_year]["Author Keywords"])
+        kw_late = keyword_counts(topic_df[topic_df["Year"] > mid_year]["Author Keywords"])
 
-        results[tid] = jaccard_distance(kw_early, kw_late) if (kw_early or kw_late) else 0.5
+        results[tid] = weighted_jaccard_distance(kw_early, kw_late) if (kw_early and kw_late) else np.nan
 
     return results
 
@@ -252,21 +282,19 @@ def compute_terminological_instability(df: pd.DataFrame, topic_ids: list,
         years = sorted(topic_df["Year"].unique())
 
         if len(years) < 3:
-            results[tid] = 0.5
+            results[tid] = np.nan
             continue
 
+        # Ab v2.5: gewichtete Jaccard-Distanz aller Keywords je Paar aufeinanderfolgender Jahre, nur wenn
+        # beide Jahre Keywords haben (bis v2.4.1: 15 häufigste als Menge, einseitig leer zählte 1,0).
         volatilities = []
         for i in range(1, len(years)):
-            kw1 = extract_keywords(
-                topic_df[topic_df["Year"] == years[i - 1]]["Author Keywords"], 15
-            )
-            kw2 = extract_keywords(
-                topic_df[topic_df["Year"] == years[i]]["Author Keywords"], 15
-            )
-            if kw1 or kw2:
-                volatilities.append(jaccard_distance(kw1, kw2))
+            kw1 = keyword_counts(topic_df[topic_df["Year"] == years[i - 1]]["Author Keywords"])
+            kw2 = keyword_counts(topic_df[topic_df["Year"] == years[i]]["Author Keywords"])
+            if kw1 and kw2:
+                volatilities.append(weighted_jaccard_distance(kw1, kw2))
 
-        results[tid] = np.mean(volatilities) if volatilities else 0.5
+        results[tid] = float(np.mean(volatilities)) if volatilities else np.nan
 
     return results
 
@@ -534,8 +562,9 @@ def compute_citation_momentum(df: pd.DataFrame, topic_ids: list,
 
     for tid in topic_ids:
         topic_df = df_t[df_t["topic"] == tid]
+        # Ab v2.5: nicht bestimmbar (NaN, später Median der Phase) statt 0,5
         if len(topic_df) < 4:
-            results[tid] = 0.5
+            results[tid] = np.nan
             continue
 
         mid_year = topic_df["Year"].median()
@@ -546,7 +575,7 @@ def compute_citation_momentum(df: pd.DataFrame, topic_ids: list,
         late_rates = rates_all[years > mid_year]
 
         if len(early_rates) == 0 or len(late_rates) == 0:
-            results[tid] = 0.5
+            results[tid] = np.nan
             continue
 
         early_mean = float(early_rates.mean())
@@ -649,6 +678,17 @@ def compute_all_indicators(
         })
 
     indicator_df = pd.DataFrame(records).set_index("topic")
+    # Ab v2.5: nicht bestimmbare Werte von EO1, DS2 und IP2 (keine Keywords auf einer Seite, leere Hälfte,
+    # sehr kleine Topics) erhalten den Median der Phase statt fester Rückfallwerte.
+    for col in ("keyword_volatility", "terminological_instability", "citation_momentum"):
+        fehlt = indicator_df[col].isna()
+        if fehlt.any():
+            med = indicator_df[col].median()
+            if pd.isna(med):
+                med = 0.5
+            indicator_df.loc[fehlt, col] = med
+            print(f"  {col}: {int(fehlt.sum())} Topic(s) ohne bestimmbaren Wert, Median der Phase "
+                  f"{med:.4f} eingesetzt (Topic {', '.join(str(t) for t in indicator_df.index[fehlt])})")
     print(f"  Indikator-Matrix: {indicator_df.shape}")
     return indicator_df
 
