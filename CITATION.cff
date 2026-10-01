@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "Weak-signal membership pipeline: topic model, sixteen indicators and four configurational memberships"
-version: v2.5
+version: v2.5.1
 date-released: 2026-10-01
 authors:
   - family-names: Borowski
@@ -18,7 +18,7 @@ identifiers:
 abstract: >-
   Analysis code for a membership-based characterisation of weak signals in
   scientific literature. The pipeline builds a topic model of a Web of Science
-  corpus (SBERT, UMAP, HDBSCAN, c-TF-IDF), computes sixteen bibliometric
+  corpus (SBERT, UMAP, HDBSCAN, TF-IDF topic terms), computes sixteen bibliometric
   indicators across five dimensions and assigns each topic four continuous
   memberships for the configurations Weak Signal, Trend, Emerging Concept and
   Latent. It includes the cross-phase topic matching, the sensitivity analyses,

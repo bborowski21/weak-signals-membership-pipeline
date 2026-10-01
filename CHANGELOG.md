@@ -2,6 +2,33 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
+## v2.5.1
+
+Stand des Manuskripts. Nur Benennung und Dokumentation; keine Rechnung und keine Zahl ändert sich, der berichtete
+Lauf (v2.5) gilt unverändert.
+
+### Geändert
+
+- **TF-IDF statt c-TF-IDF für die führenden Begriffe aus Schritt 1.** `compute_topic_keywords` passt den
+  TF-IDF-Vektorisierer auf den einzelnen Publikationen an, die IDF zählt also Publikationen, und wendet ihn auf die
+  verketteten Titel und Abstracts eines Topics an (15 Begriffe je Topic in `topic_keywords.csv`). Das ist kein
+  klassenbasiertes c-TF-IDF, dessen IDF über die Topics läuft; ein solches rechnet nur `step03c_topic_quality.py`
+  für Kohärenz und Diversität. Das Manuskript benennt beide Listen so; die Dokumentation zieht nach:
+  - `build_supplement.py`: Docstring und Beschreibung der Spalte `keywords_top3` in der README der Datendateien;
+    die Datendateien selbst bleiben bytegleich.
+  - `paper_figures_rp.py`: Abbildung S1 (`FigS1_model_interface`) beschriftet den Kasten mit den 15 Begriffen je
+    Topic mit „TF-IDF“ statt „c-TF-IDF“.
+  - `README.md`: Cosine-Quelle der Betriebsart ohne `--with-sbert`; Zitation auf v2.5.1, Versions-DOI von v2.5.
+  - `CITATION.cff`: Abstract.
+- Bezeichner im Code bleiben (`CTFIDF_TOP_N_WORDS`, `cosine_source = "ctfidf"`, Ausgaben von Schritt 1 und 1b),
+  damit Code und Laufausgaben zum berichteten Lauf passen.
+- `berichteter_lauf/README.md`: welche Skripte sich seit dem Lauf v2.5 nur in Texten unterscheiden.
+
+### Unverändert
+
+- Alle Rechnungen. Abbildung S1 ist eine Konzeptabbildung ohne Daten; im Manuskript ist sie mit dieser Fassung
+  gerendert, alle anderen Abbildungen stammen aus dem Lauf v2.5.
+
 ## v2.5
 
 Stand des Manuskripts. EO1 (`keyword_volatility`) und DS2 (`terminological_instability`) messen den Wandel der

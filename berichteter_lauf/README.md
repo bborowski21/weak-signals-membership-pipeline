@@ -40,16 +40,20 @@ Manuskript berichtet) und `alpha5` (symmetrischer Prior, `"symmetric"`, zum Verg
 ## Der Lauf v2.5
 
 Der Lauf vom 30.09.2026 übernimmt aus dem vollständigen Neulauf vom 29./30.09.2026 die Phasendateien und den
-Ordner `einheiten/` (Stufen `daten` und `einheiten`) unverändert, 32 Dateien samt Treiber, per SHA-256
-bestätigt (Liste in `uebernahme_aus_lauf_2026-09-29.json` im Laufordner), und rechnet die Stufen `saat` bis
-`pruefung` für beide Varianten neu. Gerechnet hat derselbe Treiber auf einer Kopie des Codes von v2.4.1, in der
-nur `step02_indicators.py` geändert war, in der Fassung von v2.5 (EO1 und DS2 als gewichtete Jaccard-Distanz,
-Median der Phase für nicht bestimmbare Werte; Einzelheiten in `CHANGELOG.md`). Von den 53 Skripten, die das
-Laufprotokoll aus diesem Code-Ordner erfasst, haben 52 den Stand von v2.5; `make_table_s3.py` trägt in v2.5 die
-Beschriftung von Tabelle S3 aus dem Supplement und wird vom Treiber nicht aufgerufen. Die Abbildungen baute in
-Schritt A.2 die damals außerhalb des Repos gepflegte Fassung von `paper_figures_rp.py`, die sich von der des
-Repos nur im Docstring und in FigA9 unterscheidet; FigA9 kam in Schritt A.3 aus der Fassung des Repos. Der
-Treiber meldet nach beiden Varianten keine Änderung außerhalb des Laufordners.
+Ordner `einheiten/` (Stufen `daten` und `einheiten`) unverändert, 32 Dateien samt Treiber, per SHA-256 bestätigt
+(Liste in `uebernahme_aus_lauf_2026-09-29.json` im Laufordner), und rechnet die Stufen `saat` bis `pruefung` für
+beide Varianten neu. Gerechnet hat derselbe Treiber auf einer Kopie des Codes von v2.4.1, in der nur
+`step02_indicators.py` geändert war, in der Fassung von v2.5 (EO1 und DS2 als gewichtete Jaccard-Distanz, Median
+der Phase für nicht bestimmbare Werte; Einzelheiten in `CHANGELOG.md`). Von den 53 Skripten, die das Laufprotokoll
+aus diesem Code-Ordner erfasst, sind 50 in v2.5.1 unverändert. Drei unterscheiden sich nur in Texten, die keine
+Zahl berühren: `make_table_s3.py` (seit v2.5 die Beschriftung von Tabelle S3 aus dem Supplement; vom Treiber nicht
+aufgerufen), `build_supplement.py` (seit v2.5.1 die Beschreibung der Spalte `keywords_top3` in der README der
+Datendateien; die Datendateien bleiben bytegleich) und `paper_figures_rp.py` (seit v2.5.1 die Beschriftung
+„TF-IDF“ statt „c-TF-IDF“ in Abbildung S1). Die Abbildungen baute in Schritt A.2 die damals außerhalb des Repos
+gepflegte Fassung von `paper_figures_rp.py`, die sich von der Fassung in v2.5 nur im Docstring und in FigA9
+unterscheidet; FigA9 kam in Schritt A.3 aus der Fassung des Repos. Abbildung S1 zeigt keine Daten; im Manuskript
+ist sie seit v2.5.1 mit der Fassung des Repos gerendert. Der Treiber meldet nach beiden Varianten keine Änderung
+außerhalb des Laufordners.
 
 Mit diesem Stand lässt sich der Lauf wiederholen, sofern der Lauf vom 29./30.09.2026 vorliegt:
 

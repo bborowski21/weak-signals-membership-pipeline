@@ -260,10 +260,11 @@ def figS1_model_interface() -> None:
     step(17, 49, 54, 9.5, "Density-based clustering",
          "HDBSCAN, minimum cluster size 25, minimum samples 8")
 
-    # c-TF-IDF steht daneben: es beschreibt die Topics, speist aber keinen
-    # der 16 Indikatoren.
+    # Die TF-IDF-Begriffe aus Schritt 1 stehen daneben: Sie beschreiben die Topics, speisen aber
+    # keinen der 16 Indikatoren (bis v2.5 hier als c-TF-IDF beschriftet; klassenbasiertes c-TF-IDF
+    # rechnet nur Schritt 3c fuer die Topic-Guete).
     box(74, 49, 16, 9.5, FILL_DESC)
-    ax.text(82, 55.4, "c-TF-IDF", ha="center", va="center", zorder=3,
+    ax.text(82, 55.4, "TF-IDF", ha="center", va="center", zorder=3,
             fontsize=rp.FS["small"], color=rp.TEXT)
     ax.text(82, 51.8, "15 terms per topic\n(descriptive)", ha="center", va="center",
             zorder=3, fontsize=rp.FS["cell"], color=rp.TEXT_MUTED, linespacing=1.3)

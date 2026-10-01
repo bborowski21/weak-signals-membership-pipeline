@@ -15,19 +15,22 @@ und überführt sie in vier kontinuierliche Memberships (`m_ws`, `m_trend`,
 
 Zwei Arbeiten zitieren das Repositorium, jede mit eigenem Stand. Die
 Masterarbeit referenziert den Stand `v2.2`, das daraus hervorgegangene Manuskript
-den Stand `v2.5` (davor `v2.4.1`, `v2.4` und `v2.3.1`). Alle Stände liegen unter
+den Stand `v2.5.1` (davor `v2.5`, `v2.4.1`, `v2.4` und `v2.3.1`). Alle Stände liegen unter
 derselben Concept-DOI
 [10.5281/zenodo.20283613](https://doi.org/10.5281/zenodo.20283613), die stets
 auf die jeweils neueste Version auflöst; das Badge oben zeigt diese
 Concept-DOI. Die versionsgenauen DOIs stehen auf der Zenodo-Seite unter
 *Versions*.
 
-Für den Stand `v2.5` (Manuskript) bitte zitieren als:
+Für den Stand `v2.5.1` (Manuskript) bitte zitieren als:
 
 > Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
 > model, sixteen indicators and four configurational memberships*
-> (Version v2.5) [Software]. Zenodo.
-> https://doi.org/10.5281/zenodo.23077271
+> (Version v2.5.1) [Software]. Zenodo.
+> https://doi.org/10.5281/zenodo.20283613
+>
+> Die versionsgenaue DOI von v2.5.1 vergibt Zenodo mit dem Release; sie steht
+> dann auf der Zenodo-Seite unter *Versions*.
 
 BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
 verlangt es klassisches BibTeX; unter biblatex kann er auf `software`
@@ -38,11 +41,11 @@ geändert werden.
   author    = {Borowski, Ben-Nicholas},
   title     = {Weak-signal membership pipeline: topic model, sixteen indicators
                and four configurational memberships},
-  version   = {v2.5},
+  version   = {v2.5.1},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.23077271},
-  url       = {https://doi.org/10.5281/zenodo.23077271}
+  doi       = {10.5281/zenodo.20283613},
+  url       = {https://doi.org/10.5281/zenodo.20283613}
 }
 ```
 
@@ -51,7 +54,8 @@ Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
 zugehörigen Versions-DOI; für `v2.3.1` mit der Versions-DOI
 [10.5281/zenodo.22128929](https://doi.org/10.5281/zenodo.22128929), für `v2.4` mit
 [10.5281/zenodo.23058951](https://doi.org/10.5281/zenodo.23058951), für `v2.4.1`
-mit [10.5281/zenodo.23070432](https://doi.org/10.5281/zenodo.23070432).
+mit [10.5281/zenodo.23070432](https://doi.org/10.5281/zenodo.23070432), für `v2.5` mit
+[10.5281/zenodo.23077271](https://doi.org/10.5281/zenodo.23077271).
 
 ## Architektur
 
@@ -118,7 +122,7 @@ sind beide an den Artefakten selbst ablesbar (Spalte `cosine_source` in den
 | Modus | Aufruf | Cosine-Quelle | Zweck |
 |---|---|---|---|
 | methodenkonform | `--with-sbert` (Standard über `run_all_phases.py`) | SBERT-Topic-Zentroide (Gl. 3.2 der Arbeit) | Weiterentwicklung, Paper |
-| Thesis-Reproduktion | ohne Flag | c-TF-IDF-Keyword-Vektoren | exakte Reproduktion der in der Masterarbeit berichteten Zahlen (Tag `v2.2`) |
+| Thesis-Reproduktion | ohne Flag | Vektoren der führenden Topic-Begriffe aus Schritt 1 (TF-IDF; `cosine_source` = `ctfidf`) | exakte Reproduktion der in der Masterarbeit berichteten Zahlen (Tag `v2.2`) |
 
 Hintergrund und Zahlenvergleich beider Modi: `CHANGELOG.md`, Einträge v2.3
 und v2.3.1.
@@ -201,7 +205,7 @@ python generate_synthetic_artifacts.py --output-dir output_smoke --n-docs 500
 ```
 
 Der danach angezeigte Folgeschritt (`run_sensitivity_hparam.py`, ebenso
-`--run-sensitivity`) ist in v2.5 nicht lauffähig.
+`--run-sensitivity`) ist in v2.5.1 nicht lauffähig.
 
 ## Konfiguration
 
@@ -230,7 +234,7 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 | Bereich | Dateien |
 |---|---|
-| Dokumentation | `README.md`, `CHANGELOG.md`, `RELEASE_v2.3.md`, `RELEASE_v2.3.1.md`, `RELEASE_v2.4.md`, `RELEASE_v2.4.1.md`, `RELEASE_v2.5.md`, `CITATION.cff`, `LICENSE` |
+| Dokumentation | `README.md`, `CHANGELOG.md`, `RELEASE_v2.3.md`, `RELEASE_v2.3.1.md`, `RELEASE_v2.4.md`, `RELEASE_v2.4.1.md`, `RELEASE_v2.5.md`, `RELEASE_v2.5.1.md`, `CITATION.cff`, `LICENSE` |
 | Umgebung | `requirements.txt`, `requirements.lock.txt`, `config.py`, `.gitignore` |
 | Daten | `prepare_kati_data.py`, `text_preprocessing.py`, `clean_pipeline_data.py` |
 | Pipeline | `step01_topic_modeling.py` bis `step06_cross_phase_transitions.py` (Tabelle oben), Wrapper `run_all_phases.py`, `run_phase.py`, `run_phase_indicators.py`, `run_phase_efa.py`, `run_phase_validation.py`, `run_phase_viz.py`, `run_phase_sensitivity.py`, `run_step02c_phases.py` |
@@ -243,9 +247,13 @@ sind im Methoden- bzw. Ergebniskapitel der Masterarbeit dokumentiert.
 
 Die in der finalen Fassung der Masterarbeit referenzierte Version ist
 über das Git-Tag `v2.2` fixiert und besitzt eine eigene Zenodo-DOI.
-Das daraus hervorgegangene Manuskript referenziert `v2.5` (davor `v2.4.1`,
-`v2.4` und `v2.3.1`); Versionen mit GitHub-Release archiviert Zenodo jeweils
-mit eigener DOI. Alle Tags bleiben unverändert bestehen. v2.5 rechnet EO1
+Das daraus hervorgegangene Manuskript referenziert `v2.5.1` (davor `v2.5`,
+`v2.4.1`, `v2.4` und `v2.3.1`); Versionen mit GitHub-Release archiviert Zenodo
+jeweils mit eigener DOI. Alle Tags bleiben unverändert bestehen. v2.5.1 ändert
+keine Rechnung: Die führenden Begriffe je Topic aus Schritt 1 heißen in der
+Dokumentation, in der README der Datendateien und in Abbildung S1 wie im
+Manuskript TF-IDF-Begriffe; klassenbasiertes c-TF-IDF rechnet nur Schritt 3c
+für die Topic-Güte. v2.5 rechnet EO1
 (`keyword_volatility`) und DS2 (`terminological_instability`) als gewichtete
 Jaccard-Distanz der relativen Keyword-Häufigkeiten und setzt für nicht
 bestimmbare Werte von EO1, DS2 und IP2 den Median der Phase ein; der

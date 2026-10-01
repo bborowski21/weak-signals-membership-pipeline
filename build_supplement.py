@@ -4,7 +4,7 @@
 Erzeugt die Datendateien des Supplements zum Manuskript (Indikatorkorrelationen,
 Dimensionswerte, Memberships, Indikatorwerte je Topic).
 Enthalten sind ausschliesslich abgeleitete Groessen (Indikatorwerte, Dimensionsscores,
-Memberships, Margins, c-TF-IDF-Schluesselwoerter); keine Rohdaten und keine
+Memberships, Margins, die drei fuehrenden Begriffe je Topic); keine Rohdaten und keine
 bibliographischen Angaben aus Web of Science.
 
 Aufruf im Pipeline-Ordner:  python3 build_supplement.py [--out supplement_rp] [--run-dir LAUFORDNER]
@@ -100,7 +100,8 @@ dimension scores, membership values and margins. No bibliographic records, no ra
 | `topic_indicators.csv` | The 16 indicator values per topic, both phases | {n1 + n2} |
 
 Columns common to the three topic-level files: `topic` (identifier within the phase), `phase`, `period`,
-`keywords_top3` (three leading c-TF-IDF terms of the topic).
+`keywords_top3` (the three leading terms of the topic as in Supplementary Table S3: the highest-weighted terms of
+its concatenated titles and abstracts under a TF-IDF weighting fitted on the publications).
 The dimension-score and membership files additionally carry `configuration` (argmax of the four memberships), `margin`
 (difference between the highest and the second-highest membership) and `margin_class`
 (< 0.05, 0.05 to 0.10, >= 0.10).
