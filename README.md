@@ -28,7 +28,7 @@ Für den Stand `v2.5.2` (Manuskript) bitte zitieren als:
 > Borowski, Ben-Nicholas (2026). *Weak-signal membership pipeline: topic
 > model, sixteen indicators and four configurational memberships*
 > (Version v2.5.2) [Software]. Zenodo.
-> https://doi.org/10.5281/zenodo.20283613
+> https://doi.org/10.5281/zenodo.23325501
 
 BibTeX. Der Eintragstyp ist `misc`, so exportiert Zenodo selbst und so
 verlangt es klassisches BibTeX; unter biblatex kann er auf `software`
@@ -42,13 +42,10 @@ geändert werden.
   version   = {v2.5.2},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.20283613},
-  url       = {https://doi.org/10.5281/zenodo.20283613}
+  doi       = {10.5281/zenodo.23325501},
+  url       = {https://doi.org/10.5281/zenodo.23325501}
 }
 ```
-
-Bis die Versions-DOI von `v2.5.2` hier steht, verweisen Zitat und Eintrag auf die
-Concept-DOI; die Versions-DOI steht auf der Zenodo-Seite unter *Versions*.
 
 Für den Stand `v2.2` (Masterarbeit) gilt dieselbe Form mit
 `version = {v2.2}`, dem deutschen Titel des damaligen Deposits und der
