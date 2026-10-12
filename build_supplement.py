@@ -29,9 +29,11 @@ from config import BASE_DIR, DIM_NAMES, INDICATOR_DIMENSIONS
 import rp_style as rp
 
 MEMB = ["m_ws", "m_trend", "m_ec", "m_latent"]
-# 30.09.: Spalte configuration traegt die Namen des Manuskripts (Weak Signal, Emerging Concept, Trend, Latent;
-# Entscheidung vom 06.09.), nicht mehr "Weak signal", "Emerging concept", "Latent/mixed".
-MEMB_LABEL = {"m_ws": "Weak Signal", "m_trend": "Trend", "m_ec": "Emerging Concept", "m_latent": "Latent"}
+# 30.09.: Spalte configuration traegt die Namen des Manuskripts (Entscheidung vom 06.09.), nicht mehr
+# "Weak signal", "Emerging concept", "Latent/mixed". 12.10.: Die zweite Konfiguration heisst im Manuskript
+# "Emergent", ihr Formelzeichen m_emergent; intern bleibt die Spalte m_ec.
+MEMB_LABEL = {"m_ws": "Weak Signal", "m_trend": "Trend", "m_ec": "Emergent", "m_latent": "Latent"}
+OUT_COL = {"m_ec": "m_emergent"}   # Spaltennamen der Datendateien wie im Manuskript
 PHASES = {1: BASE_DIR / "output_phase1", 2: BASE_DIR / "output_phase2"}
 PHASE_YEARS = {1: "2000-2015", 2: "2016-2025"}
 IND_ORDER = [i for d in DIM_NAMES for i in INDICATOR_DIMENSIONS[d]]
@@ -77,7 +79,7 @@ def main() -> None:
                              "configuration": conf.values, "margin": mem["margin"].round(4).values,
                              "margin_class": cls})
         dims.append(pd.concat([base, dim.rename(columns=DIM_EN_COL).round(4).reset_index(drop=True)], axis=1))
-        membs.append(pd.concat([base, mem[MEMB].round(4).reset_index(drop=True)], axis=1))
+        membs.append(pd.concat([base, mem[MEMB].rename(columns=OUT_COL).round(4).reset_index(drop=True)], axis=1))
         inds.append(pd.concat([base[["topic", "phase", "period", "keywords_top3"]],
                                ind.round(6).reset_index(drop=True)], axis=1))
 

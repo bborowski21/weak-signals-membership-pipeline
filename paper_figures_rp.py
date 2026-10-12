@@ -1104,7 +1104,7 @@ def figP3_signature_scatter(cross: dict) -> None:
     ax.text(0.985, 0.975, "trend precondition", transform=ax.transAxes, ha="right", va="top", **zp)
     ax.text(0.985, 0.02, "concept drift", transform=ax.transAxes, ha="right", va="bottom", **zp)
     # „phase" ist im Paper fuer die beiden Korpusphasen belegt, deshalb hier ausgeschrieben.
-    ax.text(0.015, 0.02, "emerging-concept precondition", transform=ax.transAxes, ha="left", va="bottom", **zp)
+    ax.text(0.015, 0.02, "emergent precondition", transform=ax.transAxes, ha="left", va="bottom", **zp)
     ax.set_xlim(x_min, x_max); ax.set_ylim(y_min, y_max)
     ax.set_xlabel("Semantic similarity $\\sigma_{\\mathrm{sem}}$ (SBERT centroid cosine)")
     ax.set_ylabel("Lexical similarity $\\sigma_{\\mathrm{lex}}$ (Jaccard, top-15 keywords)")

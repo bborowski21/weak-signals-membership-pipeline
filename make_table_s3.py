@@ -20,7 +20,7 @@ import pandas as pd
 
 # Reihenfolge wie beim Bau von Tabelle S3 für das Manuskript; sie zählt nur bei exakt gleichen Memberships.
 MEMB = ["m_ws", "m_ec", "m_trend", "m_latent"]
-NAME = {"m_ws": "Weak Signal", "m_ec": "Emerging Concept", "m_trend": "Trend", "m_latent": "Latent"}
+NAME = {"m_ws": "Weak Signal", "m_ec": "Emergent", "m_trend": "Trend", "m_latent": "Latent"}   # 12.10.: Emergent statt Emerging Concept
 KOPF = r"""\begin{longtable}{@{}rlp{0.44\textwidth}l@{}}
 \caption{The three leading terms of every topic, by phase, with the dominant configuration. Terms are the highest-weighted terms of the concatenated titles and abstracts of the topic under a TF-IDF weighting fitted on the publications. Phase~1 comprises @N1@ topics, Phase~2 comprises @N2@. Topic~0 of Phase~2 collects records from outside the field (notes to Table~\ref{tab:s_query}).}\label{tab:s_terms} \\
 \toprule

@@ -101,7 +101,9 @@ CLASS_ORDER = ["Weak Signal", "Emerging Concept", "Trend", "Latent/Mixed"]  # Pi
 # Anzeigenamen. Ben schreibt die vier Konfigurationen im Manuskript durchgehend gross
 # (Entscheidung 06.09.), und die vierte heisst dort "Latent", nicht "Latent/mixed";
 # der Schluessel "Latent/Mixed" bleibt der Pipeline-Name und wird nicht angefasst.
-CLASS_EN = {"Weak Signal": "Weak Signal", "Emerging Concept": "Emerging Concept",
+# Seit 12.10. heisst die zweite Konfiguration im Manuskript "Emergent" (vorher "Emerging Concept");
+# auch dieser Schluessel bleibt Pipeline-Name, geaendert wird nur die Anzeige.
+CLASS_EN = {"Weak Signal": "Weak Signal", "Emerging Concept": "Emergent",
             "Trend": "Trend", "Latent/Mixed": "Latent"}
 CLASS_COLOR = {"Weak Signal": "#bb4717", "Emerging Concept": "#07519d",
                "Trend": "#d6a20a", "Latent/Mixed": "#808080"}

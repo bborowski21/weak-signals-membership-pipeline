@@ -2,6 +2,29 @@
 
 Ältere Versionen sind über die Git-Tags `v1.2` bis `v2.2` dokumentiert.
 
+## v2.5.2
+
+Stand des Manuskripts. Nur Benennung; keine Rechnung und keine Zahl ändert sich, der berichtete Lauf (v2.5) gilt
+unverändert.
+
+### Geändert
+
+- **Emergent statt Emerging Concept.** Die zweite Konfiguration heißt wie im Manuskript Emergent, ihr Formelzeichen
+  `m_emergent`. Geändert ist nur, was Lesende sehen:
+  - `rp_style.py`: Anzeigename in `CLASS_EN`, damit in allen Abbildungen (Legenden, Achsen, Paneltitel).
+  - `paper_figures_rp.py`: Zonenbeschriftung in Abbildung P3 („emergent precondition“).
+  - `make_table_s3.py`: Spalte „Dominant configuration“ von Tabelle S3.
+  - `build_supplement.py`: Spalte `configuration` der Datendateien und Spalte `m_emergent` statt `m_ec` in
+    `topic_memberships.csv`; alle Werte bleiben gleich.
+- Schlüssel und Spalten im Code und in den Laufausgaben bleiben (`Emerging Concept` in `CLASS_ORDER`, `m_ec` in
+  `signal_memberships.csv`), damit Code und Laufausgaben zum berichteten Lauf passen.
+- `README.md`, `CITATION.cff` (Version, Abstract), `berichteter_lauf/README.md`.
+
+### Unverändert
+
+- Alle Rechnungen und alle Zahlen. Die Abbildungen des Manuskripts sind mit diesem Stand aus dem Laufordner von v2.5
+  gerendert; bis auf die Beschriftungen aus v2.5.1 und v2.5.2 sind sie pixelgleich mit dem Lauf.
+
 ## v2.5.1
 
 Stand des Manuskripts. Nur Benennung und Dokumentation; keine Rechnung und keine Zahl ändert sich, der berichtete
