@@ -11,7 +11,11 @@ gespeichert. Ausgegeben werden nur Guetemasse und Werte je Topic, keine Zugehoer
 Aufruf (im Ordner v26_entwicklung):
   python3 auswertung_eo4_k3.py eo4          EO4 A1 und A1R je Dokument und Topic: Referenz, 180 Pseudokorpora, K7
   python3 auswertung_eo4_k3.py eo4report    K1, K2, K4 bis K7 fuer EO4 A1, A1R und R3
-  python3 auswertung_eo4_k3.py pruefblatt   Modellwerte gegen Bens Bewertung
+  python3 auswertung_eo4_k3.py vermerke     Verlagsvermerke markieren, A2 ohne Vermerke zaehlen (Eintrag vom 17.10., Bereinigung)
+  python3 auswertung_eo4_k3.py blatt2       Pruefblatt 2: 100 Befundsaetze ziehen (Eintrag vom 17.10., Abweichung)
+  python3 auswertung_eo4_k3.py pruefblatt   Modellwerte gegen Bens Bewertung von Blatt 2 (Hauptpruefung)
+  python3 auswertung_eo4_k3.py pruefblatt --index pruefblatt_index.npy --blatt pruefblatt_saetze_claude.csv \\
+          --aus pruefblatt_vergleich_claude.json                Vergleichslinie: Claudes Bewertung von Blatt 1
   python3 auswertung_eo4_k3.py k3           Indikatoren je Seed neu rechnen (mindestens ein Seed je Aufruf, setzt fort)
   python3 auswertung_eo4_k3.py k3report     Anbindung der Topics, Rangkorrelation je Indikator, Folgen fuer die Auswahl
 Die Umgebungsvariablen V26_ZERT, V26_SEEDS und V26_AUSWERTUNG lenken Ein- und Ausgaben nur fuer Tests um.
@@ -52,6 +56,19 @@ K3_SCHWELLE = 0.75
 K3_LAUFSEED = 0
 K7_SD, K7_ANTEIL = 0.25, 0.8
 HF_SHA16 = "c8b62d7f768ca554"  # pytorch_model.bin laut Hugging Face (pedropei/sentence-level-certainty)
+BLATT2_N, BLATT2_SEED = 100, 4041  # Pruefblatt 2 (Eintrag vom 17.10., Abweichung): Befundsaetze ohne Blatt 1
+# Verlagsvermerke (Eintrag vom 17.10., Bereinigung): kein Text der Autoren; fuer EO4 vor der Berechnung entfernt
+VERMERK_ANFANG = re.compile(r"^\s*(\(c\)|\u00a9|copyright\b)", re.I)
+VERMERK_TEXT = re.compile(r"\ball rights reserved\b|\bpublished by\b.*\b(?:elsevier|wiley|springer|press|society|institute|"
+                          r"publishing)\b|\belsevier (?:b\.?\s?v\.?|ltd|inc|science|masson|gmbh)\b|\bopen access article\b|"
+                          r"\bcreative commons\b", re.I)
+VERMERK_MAX_WOERTER = 20
+EO4_B = ["EO4_A1B", "EO4_A1RB", "EO4_A2B"]
+R3B = "EO4_R3B"
+
+
+def ist_vermerk(s):
+    return bool(VERMERK_ANFANG.search(s)) or (len(s.split()) <= VERMERK_MAX_WOERTER and bool(VERMERK_TEXT.search(s)))
 # Bens Entscheidungen vom 17.10. (E2, E7) wie in backtest_kandidaten.teil_report
 E7_RUECKFALL = {"IP2_A4": "IP2_A5"}
 
@@ -96,7 +113,36 @@ def eo4_dokumente(n_dok):
             "werte_anteil_1_bis_6": runde(((w >= 1) & (w <= 6)).mean()),
             "werte_quantile_1_10_50_90_99": [runde(q, 4) for q in np.quantile(w, [.01, .1, .5, .9, .99])],
             "rho_a1_a1r_dokumente": runde(spearmanr(a1[hat], a1r[hat])[0])}
-    return {"EO4_A1": a1, "EO4_A1R": a1r}, info
+    x = {"EO4_A1": a1, "EO4_A1R": a1r}
+    f_v = ZERT / "saetze_vermerk.npy"
+    if f_v.exists():  # bereinigte Fassungen (Eintrag vom 17.10., Bereinigung)
+        k = ~np.load(f_v).astype(bool)
+        if len(k) != len(w):
+            raise SystemExit("saetze_vermerk.npy passt nicht zu werte.npy")
+        dk, nk, wk, bk_ = doc[k], nr[k], w[k], bef[k]
+        c_k = np.bincount(dk, minlength=n_dok).astype(float)
+        s_k = np.bincount(dk, weights=wk, minlength=n_dok)
+        cb_k = np.bincount(dk, weights=bk_.astype(float), minlength=n_dok)
+        sb_k = np.bincount(dk, weights=wk * bk_, minlength=n_dok)
+        o = np.lexsort((nk, dk))
+        do, wo = dk[o], wk[o]
+        ende = np.r_[np.where(np.diff(do) != 0)[0], len(do) - 1]
+        s_lk = np.zeros(n_dok)
+        s_lk[do[ende]] = wo[ende]
+        hk = c_k > 0
+        a1b, a1rb = np.full(n_dok, np.nan), np.full(n_dok, np.nan)
+        a1b[hk] = -np.where(cb_k[hk] > 0, sb_k[hk] / np.maximum(cb_k[hk], 1.0), s_lk[hk])
+        a1rb[hk] = -s_k[hk] / c_k[hk]
+        x.update({"EO4_A1B": a1b, "EO4_A1RB": a1rb})
+        info["vermerke"] = {"saetze": int((~k).sum()), "dokumente_ohne_satz_nach_bereinigung": int((~hk).sum()),
+                            "rueckfall_vorher_vermerk": int(((c_b == 0) & hat & np.isin(np.arange(n_dok), doc[letzt & ~k])).sum()),
+                            "anteil_dok_mit_befundsatz_bereinigt": runde((cb_k[hk] > 0).mean())}
+    f_a2 = OUT_EO4 / "a2_bereinigt.npz"
+    if f_a2.exists():
+        a2 = np.load(f_a2)
+        wa = a2["woerter"].astype(float)
+        x["EO4_A2B"] = np.where(wa >= bk.MIN_ABSTRACT, 1000 * a2["hedge"] / np.maximum(wa, 1.0), np.nan)
+    return x, info
 
 
 def topicwerte(x, keep, lab):
@@ -117,6 +163,8 @@ def z(s):
 def mit_r3(d):
     d = d.copy()
     d[R3] = (z(d["EO4_A1"]) + z(d["EO4_A2"])) / 2
+    if "EO4_A1B" in d.columns and "EO4_A2B" in d.columns:
+        d[R3B] = (z(d["EO4_A1B"]) + z(d["EO4_A2B"])) / 2
     return d
 
 
@@ -143,9 +191,18 @@ def teil_eo4(t0):
         if z_l.get("saetze") != info["saetze"]:
             raise SystemExit("Satzzahl im Modelllauf weicht von werte.npy ab")
     zug = labels >= 0
-    je = pd.Series((~np.isnan(x["EO4_A1"][zug])).astype(int)).groupby(labels[zug]).sum()
-    info["k1_topics_unter_10"] = int((je < 10).sum())
-    info["k1_anteil_topics_ab_10"] = runde((je >= 10).mean())
+    info["k1"] = {}
+    for c, xd in x.items():
+        je = pd.Series((~np.isnan(xd[zug])).astype(int)).groupby(labels[zug]).sum()
+        info["k1"][c] = {"topics_unter_10": int((je < 10).sum()), "anteil_topics_ab_10": runde((je >= 10).mean())}
+    info["k1_topics_unter_10"] = info["k1"]["EO4_A1"]["topics_unter_10"]
+    info["k1_anteil_topics_ab_10"] = info["k1"]["EO4_A1"]["anteil_topics_ab_10"]
+    # Gegenprobe: A2 aus den Dokumentwerten von 1b ergibt die Topicwerte von backtest_kandidaten
+    f = np.load(bk.CACHE / "felder.npz")
+    wa = f["woerter_abstract"].astype(float)
+    a2o = np.where(wa >= bk.MIN_ABSTRACT, 1000 * f["hedge"] / np.maximum(wa, 1.0), np.nan)
+    a2_ref = topicwerte({"a2": a2o}, np.arange(len(labels)), labels)["a2"]
+    info["gegenprobe_a2_max_abweichung"] = float((a2_ref - bk.lies_k("referenz")["EO4_A2"]).abs().max())
     OUT_EO4.mkdir(parents=True, exist_ok=True)
     topicwerte(x, np.arange(len(labels)), labels).to_csv(OUT_EO4 / "referenz.csv")
     n = 0
@@ -185,13 +242,26 @@ def teil_eo4report():
     kand = pd.read_csv(bk.OUT / "kandidaten_kennzahlen.csv").set_index("Code")
     alt_rang, rang = bt.lies("referenz").rank(), ref.rank()
     andere_k = [c for c in bk.KCODES if bk.PLATZ[c] not in ("EO4", "DIAG")]
+    codes = EO4_CODES + [R3] + [c for c in EO4_B + [R3B] if c in ref.columns]
+    k1 = info["k1"]
+
+    def k1_ok(c):
+        return k1[c]["anteil_topics_ab_10"] >= 0.9
+
     zeilen = []
-    for code in EO4_CODES + [R3]:
+    for code in codes:
         zz = {"Code": code, "Platz": "EO4"}
         zz.update(bk.kennzahlen(ref, lies_mit_eo4, splits, rares, nulls, logn, code))
         zz["K4_ci95"] = ci_logn(ref[code], logn)
-        zz["K1_topics_unter_10"] = info["k1_topics_unter_10"]
-        zz["K1_ok"] = bool(info["k1_anteil_topics_ab_10"] >= 0.9 and (code != R3 or kand.loc["EO4_A2", "K1_ok"]))
+        if code == R3:
+            zz["K1_topics_unter_10"] = k1["EO4_A1"]["topics_unter_10"]
+            zz["K1_ok"] = bool(k1_ok("EO4_A1") and kand.loc["EO4_A2", "K1_ok"])
+        elif code == R3B:
+            zz["K1_topics_unter_10"] = max(k1["EO4_A1B"]["topics_unter_10"], k1["EO4_A2B"]["topics_unter_10"])
+            zz["K1_ok"] = bool(k1_ok("EO4_A1B") and k1_ok("EO4_A2B"))
+        else:
+            zz["K1_topics_unter_10"] = k1[code]["topics_unter_10"]
+            zz["K1_ok"] = bool(k1_ok(code))
         c_alt = alt_rang.corrwith(rang[code]).abs()
         c_k = rang[andere_k].corrwith(rang[code]).abs()
         zz["K6_max_abs_rho"] = runde(max(c_alt.max(), c_k.max()))
@@ -201,17 +271,20 @@ def teil_eo4report():
     tab = pd.DataFrame(zeilen)
     # K7: Mittelwertmass; R3 mit der Skalierung der Referenz, damit Mischung und Teile vergleichbar bleiben
     ref_roh = bk.lies_k("referenz").join(pd.read_csv(OUT_EO4 / "referenz.csv", index_col=0))
-    mu = {c: float(ref_roh[c].mean()) for c in ("EO4_A1", "EO4_A2")}
-    sg = {c: float(ref_roh[c].std(ddof=0)) for c in ("EO4_A1", "EO4_A2")}
-    sd = {c: float(ref[c].std()) for c in EO4_CODES + [R3]}
+    teile = [c for c in ("EO4_A1", "EO4_A2", "EO4_A1B", "EO4_A2B") if c in ref_roh.columns]
+    mu = {c: float(ref_roh[c].mean()) for c in teile}
+    sg = {c: float(ref_roh[c].std(ddof=0)) for c in teile}
+    sd = {c: float(ref[c].std()) for c in codes}
     k7 = []
     for seed in bk.K7_SEEDS:
         mix = pd.read_csv(OUT_EO4 / f"k7_s{seed}.csv", index_col=0)
         a2 = bk.lies_k(f"k7_s{seed}_kand")["EO4_A2"].reindex(mix.index)
         mix[R3] = ((mix["EO4_A1"] - mu["EO4_A1"]) / sg["EO4_A1"] + (a2 - mu["EO4_A2"]) / sg["EO4_A2"]) / 2
+        if R3B in codes:
+            mix[R3B] = ((mix["EO4_A1B"] - mu["EO4_A1B"]) / sg["EO4_A1B"] + (mix["EO4_A2B"] - mu["EO4_A2B"]) / sg["EO4_A2B"]) / 2
         for a, b in pd.read_csv(bk.OUT / f"k7_s{seed}_paare.csv").itertuples(index=False):
             na, nb = int(n[a]), int(n[b])
-            for code in EO4_CODES + [R3]:
+            for code in codes:
                 va, vb, vm = ref.loc[a, code], ref.loc[b, code], mix.loc[a, code]
                 if np.isnan(va) or np.isnan(vb) or np.isnan(vm):
                     continue
@@ -228,6 +301,11 @@ def teil_eo4report():
     innen = {"A1_A2": runde(bk.rho(ref["EO4_A1"], ref["EO4_A2"])), "A1_A1R": runde(bk.rho(ref["EO4_A1"], ref["EO4_A1R"])),
              "R3_A1": runde(bk.rho(ref[R3], ref["EO4_A1"])), "R3_A2": runde(bk.rho(ref[R3], ref["EO4_A2"])),
              "A1_EO5_A1": runde(bk.rho(ref["EO4_A1"], ref["EO5_A1"]))}
+    if R3B in codes:
+        innen.update({"A1B_A2B": runde(bk.rho(ref["EO4_A1B"], ref["EO4_A2B"])),
+                      "A1_A1B": runde(bk.rho(ref["EO4_A1"], ref["EO4_A1B"])),
+                      "A2_A2B": runde(bk.rho(ref["EO4_A2"], ref["EO4_A2B"])),
+                      "R3_R3B": runde(bk.rho(ref[R3], ref[R3B]))})
     AUS.mkdir(parents=True, exist_ok=True)
     tab.to_csv(AUS / "eo4_kennzahlen.csv", index=False)
     erg = {"kennzahlen": json.loads(tab.to_json(orient="records", force_ascii=False)), "k7": k7_erg,
@@ -245,9 +323,83 @@ def teil_eo4report():
 
 # ---------------------------------------------------------------- Pruefblatt
 
-def lies_bewertung():
+def teil_vermerke():
+    """Markiert Verlagsvermerke je Satz (Reihenfolge wie saetze_meta.npz) und zaehlt Hedges und Woerter der Abstracts
+    ohne Vermerke fuer A2b. Ausgegeben und gespeichert werden nur Zahlen."""
+    import zertifiziertheit_mac as zm
+    m = np.load(ZERT / "saetze_meta.npz")
+    df, _, _, _ = bt.lade()
+    f = np.load(bk.CACHE / "felder.npz")
+    flag, h, b, n, mit, abweichend = [], [], [], [], [], 0
+    for i, ab in enumerate(df["Abstract"].fillna("").astype(str)):
+        alle = zm.saetze(ab)
+        v_alle = [ist_vermerk(s) for s in alle]
+        flag += [v for s, v in zip(alle, v_alle) if len(s.split()) >= zm.MIN_WOERTER]
+        mit.append(any(v_alle))
+        if mit[-1]:
+            hb = bk.hedges(" ".join(s for s, v in zip(alle, v_alle) if not v))
+        else:  # ohne Vermerk gelten die Zaehlungen aus 1b; Gegenprobe der wieder zusammengesetzten Saetze
+            hb = (int(f["hedge"][i]), int(f["booster"][i]), int(f["woerter_abstract"][i]))
+            abweichend += tuple(bk.hedges(" ".join(alle))) != hb
+        h.append(hb[0])
+        b.append(hb[1])
+        n.append(hb[2])
+    flag, mit, h, n = np.array(flag, dtype=bool), np.array(mit), np.array(h), np.array(n)
+    if len(flag) != len(m["doc"]):
+        raise SystemExit("Vermerk-Markierung passt nicht zu saetze_meta.npz")
+    np.save(ZERT / "saetze_vermerk.npy", flag)
+    OUT_EO4.mkdir(parents=True, exist_ok=True)
+    np.savez(OUT_EO4 / "a2_bereinigt.npz", hedge=h, booster=np.array(b), woerter=n)
+    wo = f["woerter_abstract"]
+    print(json.dumps({"saetze_ab_4_woertern_vermerk": int(flag.sum()), "anteil": runde(flag.mean()),
+                      "dokumente_mit_vermerk": int(mit.sum()),
+                      "entfernte_woerter": int((wo[mit] - n[mit]).sum()), "entfernte_hedges": int((f["hedge"][mit] - h[mit]).sum()),
+                      "neu_unter_20_woertern": int(((wo >= bk.MIN_ABSTRACT) & (n < bk.MIN_ABSTRACT)).sum()),
+                      "gegenprobe_ohne_vermerk_abweichend": int(abweichend),
+                      "vermerke_in_blatt1": int(flag[np.load(ZERT / "pruefblatt_index.npy")].sum()),
+                      "vermerke_in_blatt2": int(flag[np.load(ZERT / "pruefblatt2_index.npy")].sum())
+                      if (ZERT / "pruefblatt2_index.npy").exists() else None}, ensure_ascii=False))
+
+
+def teil_blatt2():
+    """Zieht Pruefblatt 2 aus den Befundsaetzen ohne Blatt 1. Satzzerlegung wie zertifiziertheit_mac.py, gegen
+    saetze_meta.npz geprueft; ausgegeben werden nur Zahlen, die Texte gehen nur in die Datei im Ordner phase1."""
+    import zertifiziertheit_mac as zm
+    ziel_csv, ziel_idx = ZERT / "pruefblatt2_befund.csv", ZERT / "pruefblatt2_index.npy"
+    if ziel_csv.exists() or ziel_idx.exists():
+        raise SystemExit("Pruefblatt 2 existiert schon; es wird nicht neu gezogen")
+    m = np.load(ZERT / "saetze_meta.npz")
+    df, _, _, _ = bt.lade()
+    texte, spalten = [], {"doc": [], "nr": [], "woerter": [], "befund": []}
+    for i, ab in enumerate(df["Abstract"].fillna("").astype(str)):
+        ss = [s for s in zm.saetze(ab) if len(s.split()) >= zm.MIN_WOERTER]
+        for j, s in enumerate(ss):
+            texte.append(s)
+            spalten["doc"].append(i)
+            spalten["nr"].append(j)
+            spalten["woerter"].append(len(s.split()))
+            spalten["befund"].append(bool(zm.BEFUND.search(s)))
+    for k, v in spalten.items():
+        if not np.array_equal(np.asarray(v), m[k].astype(np.asarray(v).dtype)):
+            raise SystemExit(f"Satzzerlegung weicht vom Mac-Lauf ab ({k})")
+    blatt1 = set(np.load(ZERT / "pruefblatt_index.npy").tolist())
+    pool = np.array([i for i in np.where(m["befund"].astype(bool))[0] if i not in blatt1])
+    wahl = np.sort(np.random.default_rng(BLATT2_SEED).choice(pool, size=BLATT2_N, replace=False))
+    with open(ziel_csv, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["nr", "satz", "bewertung_1_bis_6"])
+        for k, i in enumerate(wahl):
+            w.writerow([k + 1, texte[i], ""])
+    np.save(ziel_idx, wahl)
+    print(json.dumps({"saetze": len(texte), "befundsaetze_ohne_blatt1": int(len(pool)), "gezogen": int(len(wahl)),
+                      "abstracts": int(len(set(m["doc"][wahl].tolist()))),
+                      "mittlere_woerter": runde(m["woerter"][wahl].mean(), 1), "seed": BLATT2_SEED,
+                      "ueberschneidung_mit_blatt1": int(len(blatt1 & set(wahl.tolist())))}, ensure_ascii=False))
+
+
+def lies_bewertung(datei):
     """Nur nr und bewertung_1_bis_6; Trennzeichen und Zeilenenden wie aus Numbers oder einem Editor."""
-    roh = (ZERT / "pruefblatt_saetze.csv").read_bytes()
+    roh = (ZERT / datei).read_bytes()
     try:
         text = roh.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -290,13 +442,13 @@ def boot(x, y, f):
     return [runde(q) for q in np.quantile(bs, [0.025, 0.975])]
 
 
-def teil_pruefblatt():
-    wahl = np.load(ZERT / "pruefblatt_index.npy")
+def teil_pruefblatt(index_datei, blatt_datei, aus_datei):
+    wahl = np.load(ZERT / index_datei)
     w = np.load(ZERT / "werte.npy").astype(np.float64)
     bef_alle = np.load(ZERT / "saetze_meta.npz")["befund"].astype(bool)
-    nr, wert, leer, ungueltig, n_zeilen, trenn = lies_bewertung()
+    nr, wert, leer, ungueltig, n_zeilen, trenn = lies_bewertung(blatt_datei)
     if len(set(nr.tolist())) != len(nr) or nr.min(initial=1) < 1 or nr.max(initial=1) > len(wahl):
-        raise SystemExit("Spalte nr im Pruefblatt ist nicht eindeutig oder ausserhalb von 1 bis 150")
+        raise SystemExit(f"Spalte nr im Pruefblatt ist nicht eindeutig oder ausserhalb von 1 bis {len(wahl)}")
     if len(wert) < 30:
         raise SystemExit(f"Nur {len(wert)} gueltige Bewertungen ({leer} leer, {ungueltig} ungueltig); Pruefblatt pruefen")
     idx = wahl[nr - 1]
@@ -304,9 +456,11 @@ def teil_pruefblatt():
     sp = lambda a, b: float(spearmanr(a, b)[0])  # noqa: E731
     pe = lambda a, b: float(pearsonr(a, b)[0])  # noqa: E731
     rho_s = sp(mod, wert)
-    erg = {"zeilen": int(n_zeilen), "trennzeichen": trenn, "bewertet": int(len(wert)), "leer": int(leer),
-           "ungueltig": int(ungueltig),
+    erg = {"blatt": blatt_datei, "index": index_datei, "zeilen": int(n_zeilen), "trennzeichen": trenn,
+           "bewertet": int(len(wert)), "leer": int(leer), "ungueltig": int(ungueltig),
            "verteilung_bewertung": {str(k): int((wert == k).sum()) for k in range(1, 7)},
+           "anteil_haeufigste_stufe": runde(max((wert == k).mean() for k in range(1, 7))),
+           "spearman_hoechstens_erreichbar": runde(sp(np.sort(mod), np.sort(wert))),
            "spearman": runde(rho_s), "spearman_ci95": boot(mod, wert, sp),
            "pearson": runde(pe(mod, wert)), "pearson_ci95": boot(mod, wert, pe),
            "befundsaetze": {"n": int(bef.sum()),
@@ -314,7 +468,7 @@ def teil_pruefblatt():
                             "spearman_ci95": boot(mod[bef], wert[bef], sp) if bef.sum() > 10 else None},
            "schwelle": PRUEF_SCHWELLE, "bestaetigt": bool(rho_s >= PRUEF_SCHWELLE)}
     AUS.mkdir(parents=True, exist_ok=True)
-    (AUS / "pruefblatt_auswertung.json").write_text(json.dumps(erg, ensure_ascii=False, indent=1), encoding="utf-8")
+    (AUS / aus_datei).write_text(json.dumps(erg, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(erg, ensure_ascii=False))
 
 
@@ -446,7 +600,7 @@ def teil_k3report():
 def code_von(eintrag):
     """'EO1 A1' -> EO1_A1, 'EO4 R3' -> EO4_R3, 'PE1' oder 'DS1 (bestehend)' -> Platz (bestehender Indikator)."""
     teile = eintrag.replace(" (eingeschraenkt)", "").split()
-    if len(teile) > 1 and re.fullmatch(r"A\d|R3", teile[1]):
+    if len(teile) > 1 and re.fullmatch(r"A\dR?B?|R3B?", teile[1]):
         return f"{teile[0]}_{teile[1]}"
     return teile[0]
 
@@ -493,22 +647,28 @@ def folgen_k3(k3):
         regel = vorlage["regeln"][platz]
         k = k3_von(code)
         status[eintrag] = k
-        if platz == "EO4":
-            a1 = eo4_alle.get("EO4_A1")
-            a1 = None if a1 is None or bestaetigt is None else (a1 and k3_von("EO4_A1") is not False and bestaetigt)
-            a2 = alle["EO4_A2"] and k3_von("EO4_A2") is not False
+        if platz == "EO4":  # bereinigte Fassungen, sobald gerechnet (Eintrag vom 17.10., Bereinigung)
+            b_da = "EO4_A1B" in eo4_alle and "EO4_A2B" in eo4_alle
+            c1, c2, zu_r3, zu_a2 = (("EO4_A1B", "EO4_A2B", "EO4 R3B", "EO4 A2B") if b_da
+                                    else ("EO4_A1", "EO4_A2", "EO4 R3", eintrag))
+            a1 = eo4_alle.get(c1)
+            a1 = None if a1 is None or bestaetigt is None else (a1 and k3_von(c1) is not False and bestaetigt)
+            a2 = bool(eo4_alle[c2] if b_da else alle["EO4_A2"]) and k3_von(c2) is not False
+            status[eintrag] = k3_von(c2)
             if a1 and a2:
-                neu.append("EO4 R3")
-                aenderungen.append({"platz": "EO4", "von": eintrag, "zu": "EO4 R3",
+                neu.append(zu_r3)
+                aenderungen.append({"platz": "EO4", "von": eintrag, "zu": zu_r3,
                                     "grund": "A1 erfuellt alle Kriterien und das Pruefblatt bestaetigt das Modell"})
             elif a2:
-                neu.append(eintrag)
-                if a1 is False:
-                    aenderungen.append({"platz": "EO4", "von": eintrag, "zu": eintrag, "grund": "A1 entfaellt"})
+                neu.append(zu_a2)
+                if a1 is False or zu_a2 != eintrag:
+                    aenderungen.append({"platz": "EO4", "von": eintrag, "zu": zu_a2,
+                                        "grund": ("A1 entfaellt" if a1 is False else "A1 steht aus")
+                                        + ("; A2 ohne Verlagsvermerke" if b_da else "")})
             else:
-                neu.append(eintrag + " (eingeschraenkt)")
-                aenderungen.append({"platz": "EO4", "von": eintrag, "zu": eintrag + " (eingeschraenkt)",
-                                    "grund": "A2 verfehlt K3; Vorlage fuer Ben", "a1_erfuellt": a1})
+                neu.append(zu_a2 + " (eingeschraenkt)")
+                aenderungen.append({"platz": "EO4", "von": eintrag, "zu": zu_a2 + " (eingeschraenkt)",
+                                    "grund": "A2 verfehlt K3 oder andere Kriterien; Vorlage fuer Ben", "a1_erfuellt": a1})
             continue
         if k is not False:
             neu.append(eintrag)
@@ -554,16 +714,23 @@ def folgen_k3(k3):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("teil", choices=["eo4", "eo4report", "pruefblatt", "k3", "k3report"])
+    ap.add_argument("teil", choices=["vermerke", "eo4", "eo4report", "blatt2", "pruefblatt", "k3", "k3report"])
     ap.add_argument("--budget", type=float, default=40.0)
+    ap.add_argument("--index", default="pruefblatt2_index.npy")
+    ap.add_argument("--blatt", default="pruefblatt2_befund_ben.csv")
+    ap.add_argument("--aus", default="pruefblatt_auswertung.json")
     a = ap.parse_args()
     t0 = time.time()
     if a.teil == "eo4":
         teil_eo4(t0)
     elif a.teil == "eo4report":
         teil_eo4report()
+    elif a.teil == "blatt2":
+        teil_blatt2()
+    elif a.teil == "vermerke":
+        teil_vermerke()
     elif a.teil == "pruefblatt":
-        teil_pruefblatt()
+        teil_pruefblatt(a.index, a.blatt, a.aus)
     elif a.teil == "k3":
         teil_k3(t0, a.budget)
     else:
