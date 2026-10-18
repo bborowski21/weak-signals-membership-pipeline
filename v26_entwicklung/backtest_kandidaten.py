@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""V2.6, Entwicklungsschritt 1b (nur Phase 1): Kandidaten aus Abschnitt 0.4 des Protokolls rechnen und pruefen.
+"""V2.6, Entwicklungsschritt 1b: Kandidaten aus Abschnitt 0.4 des Protokolls rechnen und pruefen (Phase 1; Phase 2 nur
+in der Bestaetigung, 3.4; Phase und Ausgabeordner waehlt phase.py, fuer Phase 1 ohne V26_AUSGABE wie bisher).
 
 Gleiche Pruefbatterie und gleiche Pseudokorpora wie backtest_phase1.py (Teilungen mit Seed 1000 + r,
 Rarefaktion 2000 + r, Label-Permutation 3000 + r), damit Kandidaten und bestehende Indikatoren gepaart
 verglichen werden. Das Skript gibt nur Guetemasse und abgeleitete Werte je Topic aus, keine Zugehoerigkeiten
-und keine Konfigurationen (Verblindung bis zum Einfrieren). Phase 2 wird nicht gelesen. Datensaetze verlassen
+und keine Konfigurationen (Verblindung bis zum Einfrieren). Datensaetze verlassen
 den Rechner nicht; der Zwischenspeicher _cache enthaelt dokumentweise abgeleitete Strukturen und bleibt lokal
 (output_*/ und *.npz stehen in .gitignore).
 
@@ -45,7 +46,8 @@ sys.path.insert(0, str(HIER))
 import backtest_phase1 as bt  # noqa: E402  (setzt config und step02_indicators auf Phase 1)
 
 s2 = bt.s2
-OUT = bt.V26 / "output_v26_entwicklung" / "kandidaten_phase1"
+phs = bt.phs
+OUT = phs.ordner("output_v26_entwicklung/kandidaten_phase1", "kandidaten")
 CACHE = OUT / "_cache"
 JAHR_MIN, JAHR_MAX = bt.JAHR_MIN, bt.JAHR_MAX
 
@@ -62,8 +64,8 @@ DOV_BODEN = 0.10       # PE1 A1: Rauschboden am 10. Perzentil (BERTrend)
 MIN_ABSTRACT = 20      # EO4 A2: Mindestzahl an Woertern im Abstract
 LAENGE_BINS = 10       # EO3 A1: Dezile der Textlaenge
 NEU_FENSTER = 2        # DS2 A3 (17.10.): Phrase gilt als neu, wenn ihr Erstjahr im Korpus mindestens Erscheinungsjahr minus 2 ist
-NEU_AB = 2003          # DS2 A3: Dokumente ab 2003 (drei Jahre Vorlauf im Fenster)
-KOHORTE_AB = 2011      # IP2 A5 (17.10.): juengste fuenf Jahre des Fensters
+NEU_AB = phs.NEU_AB     # DS2 A3: Dokumente ab dem vierten Jahr des Fensters (drei Jahre Vorlauf; Phase 1: 2003)
+KOHORTE_AB = phs.KOHORTE_AB  # IP2 A5 (17.10.): juengste fuenf Jahre des Fensters (Phase 1: 2011)
 SEMD_MIN = 20          # EO5 A1 (17.10.): Wort gueltig ab 20 Dokumenten ausserhalb des Topics
 SEMD_MIN_WOERTER = 5   # EO5 A1: Dokument gueltig ab 5 gueltigen Woertern
 SEMD_BODEN = 1e-3      # EO5 A1: Untergrenze der mittleren Kosinusaehnlichkeit vor dem Logarithmus
@@ -277,7 +279,8 @@ def baue_cache(t0):
     for name, m in (("phrasen", P), ("keywords", KW), ("kategorien", KAT), ("kwplus", KP), ("institutionen", AFF),
                     ("laender", LAND), ("autoren", AUT)):
         sparse.save_npz(CACHE / f"{name}.npz", m.tocsr())
-    meta = {"daten_sha16": sha16(bt.DATA), "labels_sha16": sha16(bt.REF / "model_results.pkl"), "n_dok": int(N),
+    meta = {"daten_sha16": sha16(phs.lies(bt.DATA, "Pruefsumme des WoS-Exports")),
+            "labels_sha16": sha16(phs.lies(bt.REF / "model_results.pkl", "Pruefsumme des berichteten Laufs")), "n_dok": int(N),
             "phrasen_vokabular": len(vok), "phrasen_gesamt": len(dfz), "kategorien_korpus": len(kat_vok),
             "journale": int(len(j_uniq)), "min_df": MIN_DF, "max_df": MAX_DF}
     (CACHE / "meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
@@ -294,7 +297,8 @@ def config_y_cutoff():
 class Korpus:
     def __init__(self, t0):
         meta = json.loads((CACHE / "meta.json").read_text(encoding="utf-8"))
-        if meta["daten_sha16"] != sha16(bt.DATA) or meta["labels_sha16"] != sha16(bt.REF / "model_results.pkl"):
+        if (meta["daten_sha16"] != sha16(phs.lies(bt.DATA, "Pruefsumme des WoS-Exports"))
+                or meta["labels_sha16"] != sha16(phs.lies(bt.REF / "model_results.pkl", "Pruefsumme des berichteten Laufs"))):
             raise SystemExit("Zwischenspeicher passt nicht zu den Daten; 'cache' neu ausfuehren")
         self.meta = meta
         self.df, self.labels, emb, self.red = bt.lade()
@@ -744,7 +748,7 @@ def pseudokorpora():
         for name, teile, halb in (("A", a, 0), ("B", b, 1)):
             keep = np.sort(np.concatenate([rausch] + teile))
             yield f"split_r{r:02d}_{name}", keep, labels[keep], (1000 + r) * 10 + halb
-    for r in range(30):
+    for r in range(phs.RARE_N):  # Rarefaktion nur in der Entwicklung (30 Ziehungen)
         rng = np.random.default_rng(2000 + r)
         teile = [rng.choice(np.where(labels == t)[0], size=min(M_RARE, int((labels == t).sum())), replace=False)
                  for t in tids]
@@ -792,9 +796,11 @@ def teil_repro(t0):
     # Abdeckung je Kandidat (K1)
     n_top = pd.Series(K.labels[K.labels >= 0]).value_counts().sort_index()
     abd = {}
+    k1_je = {}
     for code in KCODES:
         f = K.abdeckung[FELD[code]]
         je = pd.Series(f[K.labels >= 0].astype(int)).groupby(K.labels[K.labels >= 0]).sum().reindex(n_top.index)
+        k1_je[code] = je
         abd[code] = {"feld": FELD[code], "topics_unter_10_dok": int((je < 10).sum()),
                      "anteil_topics_ab_10": round(float((je >= 10).mean()), 4),
                      "anteil_dok_mit_feld": round(float(f[K.labels >= 0].mean()), 4),
@@ -803,6 +809,8 @@ def teil_repro(t0):
     res = {"meta": K.meta, "info": info, "gegenproben": proben, "abdeckung": abd, "eo3_laengenklassen": laengen,
            "diag_verteilung": np.quantile(ind["DIAG_A1"], [0, .1, .5, .9, 1]).round(4).tolist()}
     (OUT / "repro_kandidaten.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    # K1 je Topic (Dokumente mit Feld), fuer die Zaehlung auf Phase 2 in optimismus_phase1.py (Protokoll 3, Punkt b)
+    pd.DataFrame(k1_je).rename_axis("topic").to_csv(OUT / "k1_je_topic.csv")
     print(json.dumps({k: v for k, v in res.items() if k != "abdeckung"}, ensure_ascii=False))
     print(pd.DataFrame(abd).T.to_string())
 
@@ -811,15 +819,18 @@ def teil_lauf(t0, budget):
     K = Korpus(t0)
     OUT.mkdir(parents=True, exist_ok=True)
     fertig = offen = 0
+    letzte = 0.0  # Dauer des letzten Pseudokorpus: keines mehr beginnen, das das Budget sprengen wuerde
     for name, keep, lab, seed in pseudokorpora():
         if (OUT / f"{name}.csv").exists() and set(KCODES) <= set(pd.read_csv(OUT / f"{name}.csv", nrows=0).columns):
             fertig += 1
             continue
-        if time.time() - t0 > budget:
+        if time.time() - t0 + letzte > budget:
             offen += 1
             continue
+        t_r = time.time()
         ind, _, _ = kandidaten(K, keep, lab, seed)
-        ind.to_csv(OUT / f"{name}.csv")
+        phs.csv_atomar(ind, OUT / f"{name}.csv")
+        letzte = time.time() - t_r
         fertig += 1
         uhr(t0, f"{name} fertig")
     print(f"STAND: {fertig} fertig, {offen} offen", flush=True)
@@ -834,7 +845,7 @@ def rho(a, b):
 
 
 def lade_labels():
-    with open(bt.REF / "model_results.pkl", "rb") as f:
+    with open(phs.lies(bt.REF / "model_results.pkl", "Labels des berichteten Laufs"), "rb") as f:
         return np.asarray(pickle.load(f)["labels"])
 
 
@@ -894,7 +905,8 @@ def teil_report():
     rares = sorted(p.stem for p in OUT.glob(f"rare_m{M_RARE}_r*.csv"))
     nulls = sorted(p.stem for p in OUT.glob("null_r*.csv"))
     abd = json.loads((OUT / "repro_kandidaten.json").read_text(encoding="utf-8"))["abdeckung"]
-    bt_tab = pd.read_csv(bt.OUT / "backtest_phase1_kennzahlen.csv").set_index("Indikator")
+    bt_tab = pd.read_csv(bt.OUT / f"{bt.KENNZAHLEN}.csv").set_index("Indikator")
+    bt_rep = json.loads((bt.OUT / "repro.json").read_text(encoding="utf-8"))
     alt_codes = {v: k for k, v in bt.CODE.items()}
     alt_rang = alt_ref.rank()
     kand_rang = ref.rank()
@@ -926,7 +938,10 @@ def teil_report():
     for code_alt, zz in bt_tab.iterrows():
         z = {"K2_spearman_brown": zz["K2_spearman_brown"], "K4_rho_logn": zz["K4_rho_logn"],
              "K5_null_r2": zz["K5_null_r2"], "K6_max_abs_rho": zz["K6_max_abs_rho"]}
-        k1_ok = code_alt not in ("EO1", "DS2")
+        # K1 aus der Zaehlung von 1a auf derselben Phase (Phase 1: verfehlt nur bei EO1 und DS2)
+        a_alt = bt_rep["abdeckung"].get(code_alt)
+        k1_ok = (a_alt is not None
+                 and (bt_rep["n_topics"] - a_alt["topics_unter_10_dok"]) / bt_rep["n_topics"] >= 0.9)
         best[code_alt] = urteil(z, k1_ok, code_alt == "PE1")
     # Regeln R1 bis R4 je Platz
     entscheid = {}

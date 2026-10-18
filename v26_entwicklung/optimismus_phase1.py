@@ -4,13 +4,16 @@
 Vorgaben laut Protokoll, Eintrag vom 17.10.2026 vor dem Rechnen (Optimismusschaetzung, Punkte a bis f). Gelesen werden nur
 gespeicherte Topicwerte aus 1a bis 1h (backtest_phase1.py, backtest_kandidaten.py, auswertung_eo4_k3.py; deren Funktionen
 werden unveraendert verwendet) und fuer K1 die Zahl der Dokumente mit Feld je Topic aus dem Zwischenspeicher von 1b.
-Ausgegeben werden nur Guetemasse und Auswahlen, keine Zugehoerigkeiten und keine Konfigurationen. Phase 2 wird nicht gelesen.
+Ausgegeben werden nur Guetemasse und Auswahlen, keine Zugehoerigkeiten und keine Konfigurationen. In der Bestaetigung
+(3.4, Phasenschalter phase.py) laufen nur die Teile daten und kriterien, auf der Phase des Schalters.
 
 Aufruf (im Ordner v26_entwicklung):
   python3 optimismus_phase1.py daten               Topicwerte aller Fassungen sammeln (optimismus_phase1/daten.pkl)
   python3 optimismus_phase1.py regress             Kennzahlen und Auswahl auf allen 146 Topics gegen 1a bis 1h und E9
   python3 optimismus_phase1.py lauf --budget 150   Wiederholungen rechnen, bis das Zeitbudget erreicht ist (setzt fort)
   python3 optimismus_phase1.py report              Optimismus je Kriterium und Platz, Auswahlquoten, Spanne fuer B2
+  python3 optimismus_phase1.py kriterien           K1 bis K6 und K3 aller Fassungen auf allen Topics der Phase, mit
+                                                   Status und Abgleich gegen 1a bis 1h derselben Phase (fuer B1 und B2)
 """
 import argparse
 import hashlib
@@ -33,7 +36,8 @@ import auswertung_eo4_k3 as ak  # noqa: E402  (laedt backtest_kandidaten und bac
 
 bk = ak.bk
 bt = bk.bt
-OUT = bt.V26 / "output_v26_entwicklung" / "optimismus_phase1"
+phs = bt.phs
+OUT = phs.ordner("output_v26_entwicklung/optimismus_phase1", "optimismus")
 
 # Vor dem Rechnen festgelegt (Protokoll, Eintrag vom 17.10.2026, Optimismusschaetzung); nach Ergebnissen nicht veraendern.
 WIEDERHOLUNGEN = 5
@@ -137,6 +141,9 @@ def tabelle(name):
     return pd.concat([best, kand[KAND + EO4_EXTRA]], axis=1)[FASS]
 
 
+K1_ABWEICHUNGEN = {}
+
+
 def k1_zaehlung(labels, tids, x_eo4):
     """Dokumente mit dem fuer K1 benoetigten Feld je Topic (Felder wie Korpus.abdeckung in 1b und repro in 1a)."""
     f = np.load(bk.CACHE / "felder.npz")
@@ -158,14 +165,25 @@ def k1_zaehlung(labels, tids, x_eo4):
     gross = 10 ** 9
     k1 = pd.DataFrame(gross, index=pd.Index(tids, name="topic"), columns=FASS, dtype=float)
     pruef = {}
+    # Zaehlungen je Topic aus 1a und 1b derselben Phase (repro schreibt sie seit dem Phasenschalter, Protokoll 3, Punkt b)
+    f_bk, f_bt = bk.OUT / "k1_je_topic.csv", bt.OUT / "k1_je_topic.csv"
+    je_bk = pd.read_csv(f_bk, index_col=0) if f_bk.exists() else None
+    je_bt = pd.read_csv(f_bt, index_col=0) if f_bt.exists() else None
     for c in KAND:
         fe = bk.FELD[c]
         if fe == "eo5":  # braucht das Unigrammvokabular; in 1f ohne Topic unter 10 Dokumenten
-            if abd[c]["topics_unter_10_dok"] != 0:
+            if je_bk is not None and c in je_bk.columns:
+                k1[c] = je_bk[c].reindex(tids).fillna(0).astype(float)
+                pruef[c] = (int((k1[c] < K1_MIN_DOK).sum()), abd[c]["topics_unter_10_dok"])
+            elif abd[c]["topics_unter_10_dok"] != 0:
                 raise SystemExit("EO5 A1: K1 je Topic nicht aus dem Zwischenspeicher bestimmbar")
             continue
         k1[c] = zaehle(feld[fe])
         pruef[c] = (int((k1[c] < K1_MIN_DOK).sum()), abd[c]["topics_unter_10_dok"])
+    if je_bt is not None:  # bestehende Indikatoren mit der Zaehlung aus 1a (Feld vorhanden und nicht leer)
+        for c in BEST:
+            if c not in ("EO1_BEST", "DS2_BEST", "IP3_BEST") and c[:3] in je_bt.columns:
+                k1[c] = je_bt[c[:3]].reindex(tids).fillna(0).astype(float)
     for c in ("EO1_BEST", "DS2_BEST"):  # 1a: Author Keywords; alle uebrigen bestehenden ohne Topic unter 10 Dokumenten
         k1[c] = zaehle(feld["keywords"])
     k1["IP3_BEST"] = zaehle(feld["kwplus"])
@@ -177,8 +195,10 @@ def k1_zaehlung(labels, tids, x_eo4):
         soll = rep[c[:3]]["topics_unter_10_dok"]
         pruef[c] = (int((k1[c] < K1_MIN_DOK).sum()), soll)
     abw = {c: v for c, v in pruef.items() if v[0] != v[1]}
-    if abw:
+    if abw and (phs.ENTWICKLUNG or not set(abw) <= {"EO1_BEST", "DS2_BEST", "IP3_BEST"}):
         raise SystemExit(f"K1-Zaehlung weicht von 1a/1b ab: {abw}")
+    K1_ABWEICHUNGEN.clear()
+    K1_ABWEICHUNGEN.update(abw)  # Bestaetigung: nur bei Fassungen ausserhalb der Auswahl zulaessig, wird berichtet
     return k1
 
 
@@ -201,18 +221,24 @@ def teil_daten(t0):
     x_eo4 = ak.eo4_dokumente(len(labels))[0]
     k1 = k1_zaehlung(labels, tids, x_eo4)
     uhr(t0, "K1 je Topic gezaehlt und gegen 1a und 1b geprueft")
-    # K3: angebundene Topics und Werte je Seed (wie teil_k3report)
-    ref_k, ref_b = ak.tabellen_fuer(labels, "referenz", x_eo4)
+    # K3: angebundene Topics und Werte je Seed (wie teil_k3report). Referenz wie dort und nach 1h: die berichteten Labels,
+    # wenn der Kontrolllauf mit Seed 42 sie reproduziert, sonst der Kontrolllauf (Protokoll 3, Eintrag zur Umsetzung, c)
+    ref_ist_bericht = ak.ref_gleich()
+    ref_lab = labels if ref_ist_bericht else np.load(ak.seed_dateien(42)[0]).astype(np.int64)
+    ref_k, ref_b = ak.tabellen_fuer(ref_lab, "referenz" if ref_ist_bericht else "seed42", x_eo4)
     ref_b.columns = [bt.CODE[c] + "_BEST" for c in ref_b.columns]
     ref_k3 = pd.concat([ref_b, ref_k[KAND + EO4_EXTRA]], axis=1)[FASS]
-    d_k3 = float(np.nanmax(np.abs(ref_k3.reindex(tids).to_numpy(float) - ref.reindex(tids).to_numpy(float))))
-    if d_k3 > 1e-9:
-        raise SystemExit(f"Referenzwerte fuer K3 weichen ab ({d_k3})")
+    if ref_ist_bericht:
+        d_k3 = float(np.nanmax(np.abs(ref_k3.reindex(tids).to_numpy(float) - ref.reindex(tids).to_numpy(float))))
+        if d_k3 > 1e-9:
+            raise SystemExit(f"Referenzwerte fuer K3 weichen ab ({d_k3})")
     paare, seedwerte = {}, {}
     for s in ak.K3_SEEDS:
         lab = np.load(ak.seed_dateien(s)[0]).astype(np.int64)
         p = pd.read_csv(ak.OUT_K3 / f"anbindung_seed{s}.csv")
-        p2, _, _ = ak.anbindung(labels, lab)
+        p2, _, _ = ak.anbindung(ref_lab, lab)
+        if len(p) != len(p2):
+            raise SystemExit(f"Anbindung Seed {s} weicht von k3report ab")
         if not (p[["ref", "seed"]].values == p2[["ref", "seed"]].values).all():
             raise SystemExit(f"Anbindung Seed {s} weicht von k3report ab")
         kd, bs = ak.tabellen_fuer(lab, f"seed{s}", x_eo4)
@@ -224,14 +250,20 @@ def teil_daten(t0):
     D = {"tids": tids, "n": n, "logn": np.log(n.astype(float)), "terzil": terzil, "ref": ref, "ref_voll": ref_voll,
          "splits": splits, "A": A, "B": B, "e0": e0, "k1": k1, "seeds": list(ak.K3_SEEDS), "paare": paare,
          "seedwerte": seedwerte,
-         "quellen": {"backtest_phase1_kennzahlen.csv": sha16(bt.OUT / "backtest_phase1_kennzahlen.csv"),
+         "quellen": {f"{bt.KENNZAHLEN}.csv": sha16(bt.OUT / f"{bt.KENNZAHLEN}.csv"),
                      "kandidaten_kennzahlen.csv": sha16(bk.OUT / "kandidaten_kennzahlen.csv"),
                      "eo4_kennzahlen.csv": sha16(ak.AUS / "eo4_kennzahlen.csv"),
                      "k3_ergebnis.json": sha16(ak.AUS / "k3_ergebnis.json"),
-                     "model_results.pkl": sha16(bt.REF / "model_results.pkl")}}
+                     "model_results.pkl": sha16(phs.lies(bt.REF / "model_results.pkl", "Pruefsumme des berichteten Laufs"))}}
+    if K1_ABWEICHUNGEN:
+        D["k1_abweichungen"] = {c: list(v) for c, v in K1_ABWEICHUNGEN.items()}
+    if not ref_ist_bericht:  # K3 gegen den Kontrolllauf: dessen Werte, Topicnummern des Kontrolllaufs
+        D["ref_k3"] = ref_k3
+        D["k3_referenz"] = "Kontrolllauf Seed 42"
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(OUT / "daten.pkl", "wb") as f:
+    with open(OUT / "daten.pkl.tmp", "wb") as f:
         pickle.dump(D, f)
+    Path(OUT / "daten.pkl.tmp").replace(OUT / "daten.pkl")
     uhr(t0, f"daten.pkl geschrieben: {len(tids)} Topics, {len(FASS)} Fassungen, Terzile {terzil.value_counts().to_dict()}")
 
 
@@ -274,11 +306,15 @@ def kriterien(D, U, fass=None):
     z["K6"] = pd.Series(k6)
     # K3: Mittel der Seed-Korrelationen ueber die angebundenen Topics in U (je Seed mehr als 10)
     Us = set(U)
+    ref_k3 = D.get("ref_k3")  # nur gesetzt, wenn der Kontrolllauf die Referenz ist
+    if ref_k3 is not None and Us != set(D["tids"]):
+        raise SystemExit("K3 mit dem Kontrolllauf als Referenz ist nur auf allen Topics der Phase bestimmbar")
     k3 = []
     for s in D["seeds"]:
         pr = D["paare"][s]
-        pr = pr[pr["ref"].isin(Us)]
-        a = D["ref"].reindex(pr["ref"].values)[fass].to_numpy(float)
+        if ref_k3 is None:
+            pr = pr[pr["ref"].isin(Us)]
+        a = (D["ref"] if ref_k3 is None else ref_k3).reindex(pr["ref"].values)[fass].to_numpy(float)
         b = D["seedwerte"][s].reindex(pr["seed"].values)[fass].to_numpy(float)
         k3.append(spearman_spalten(a, b))
     with warnings.catch_warnings():
@@ -335,11 +371,9 @@ def waehle(st, z):
 
 # ---------------------------------------------------------------- Pruefung auf allen Topics
 
-def teil_regress(t0):
-    D = lade_daten()
-    z = kriterien(D, D["tids"])
-    uhr(t0, "Kriterien auf allen 146 Topics gerechnet")
-    b1a = pd.read_csv(bt.OUT / "backtest_phase1_kennzahlen.csv").set_index("Indikator")
+def abgleich_berichte(z, st):
+    """K2 bis K6 und K3 sowie die Status gegen 1a (bestehende), 1b (Kandidaten), 1g (EO4) und 1h (K3) derselben Phase."""
+    b1a = pd.read_csv(bt.OUT / f"{bt.KENNZAHLEN}.csv").set_index("Indikator")
     kk = pd.read_csv(bk.OUT / "kandidaten_kennzahlen.csv").set_index("Code")
     e4 = pd.read_csv(ak.AUS / "eo4_kennzahlen.csv").set_index("Code")
     k3j = json.loads((ak.AUS / "k3_ergebnis.json").read_text(encoding="utf-8"))["k3"]
@@ -356,10 +390,12 @@ def teil_regress(t0):
             soll["K3"] = k3j[f]["mittel"]
             tol = {"K2": 2e-6, "K4": 2e-6, "K5": 2e-6, "K6": 2e-6, "K3": 2e-6}
         for k in ("K2", "K3", "K4", "K5", "K6"):
-            d = abs(float(z.loc[f, k]) - float(soll[k]))
+            ist, ziel = float(z.loc[f, k]), (np.nan if soll[k] is None else float(soll[k]))
+            if ist != ist and ziel != ziel:  # beide nicht bestimmbar (etwa K3 ohne genug angebundene Topics)
+                continue
+            d = abs(ist - ziel)
             if not d <= tol[k]:
                 abw[f"{f} {k}"] = [runde(z.loc[f, k]), runde(soll[k])]
-    st = status(z)
     # Status gegen 1b (Kandidaten), 1g (EO4) und die Entscheidungsvorlage (bestehende)
     vorlage = json.loads((bk.OUT / "entscheidungsvorlage_regeln.json").read_text(encoding="utf-8"))["bestehend"]
     norm = {"erfuellt": True, "verfehlt": False, "entfaellt": True}
@@ -373,8 +409,27 @@ def teil_regress(t0):
             soll = {"K1": norm[r["S_K1"]], "K2": r["S_K2"], "K4": norm[r["S_K4"]], "K5": norm[r["S_K5"]],
                     "K6": norm[r["S_K6"]]}
         for k, v in soll.items():
-            if st[f][k] != v:
+            if st[f][k] != v and not _an_der_schwelle(z.loc[f, k], k, 6e-4 if f in BEST else 2e-6):
                 s_abw[f"{f} {k}"] = [st[f][k], v]
+    return abw, s_abw
+
+
+SCHWELLEN = {"K1": [K1_ANTEIL], "K2": [K2_AUS, K2_GUT], "K4": [K4_GRENZE], "K5": [K5_GRENZE], "K6": [K6_GRENZE]}
+
+
+def _an_der_schwelle(wert, k, tol):
+    """Ein Status aus gerundeten Kennzahlen (1a dreistellig, 1b und 1g sechsstellig, K1 vierstellig) kann an der Schwelle
+    vom ungerundeten Wert abweichen; das ist keine Abweichung der Rechnung."""
+    w = abs(float(wert)) if k == "K4" else float(wert)
+    return w == w and any(abs(w - t) <= (5e-5 if k == "K1" else tol) for t in SCHWELLEN[k])
+
+
+def teil_regress(t0):
+    D = lade_daten()
+    z = kriterien(D, D["tids"])
+    uhr(t0, "Kriterien auf allen 146 Topics gerechnet")
+    st = status(z)
+    abw, s_abw = abgleich_berichte(z, st)
     wahl = waehle(st, z)
     w_abw = {p: [list(wahl[p]), list(AUSWAHL_E9[p])] for p in PLAETZE if wahl[p] != AUSWAHL_E9[p]}
     erg = {"kennzahlen_abweichungen": abw, "status_abweichungen": s_abw, "auswahl_abweichungen": w_abw,
@@ -385,6 +440,26 @@ def teil_regress(t0):
     print(json.dumps(erg, ensure_ascii=False))
     if not erg["bestanden"]:
         raise SystemExit("Regressionspruefung nicht bestanden; kein Lauf")
+
+
+def teil_kriterien(t0):
+    """K1 bis K6 und K3 aller 51 Fassungen auf allen Topics der Phase, mit Status nach 0.5, E1 und E4 (Grundlage fuer B1
+    und B2 in 3.4) und dem Abgleich gegen die Berichte aus 1a bis 1h derselben Phase. Keine Auswahl, keine Zugehoerigkeit."""
+    if not phs.ENTWICKLUNG:
+        phs.aktiver_lauf()  # im Bestaetigungsmodus nur in einem offenen Lauf (nach dem Abschluss wird nichts geschrieben)
+    D = lade_daten()
+    z = kriterien(D, D["tids"])
+    uhr(t0, f"Kriterien auf allen {len(D['tids'])} Topics gerechnet")
+    st = status(z)
+    abw, s_abw = abgleich_berichte(z, st)
+    OUT.mkdir(parents=True, exist_ok=True)
+    z.round(12).to_csv(OUT / "kriterien_alle_topics.csv")
+    erg = {"phase": phs.PHASE, "topics": len(D["tids"]), "fassungen": len(z), "kennzahlen_abweichungen": abw,
+           "status_abweichungen": s_abw, "abgleich_bestanden": not (abw or s_abw),
+           "k1_abweichungen": D.get("k1_abweichungen", {}), "status": st, "quellen": D["quellen"]}
+    (OUT / "kriterien_alle_topics.json").write_text(json.dumps(erg, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(json.dumps({k: erg[k] for k in ("phase", "topics", "fassungen", "abgleich_bestanden", "kennzahlen_abweichungen",
+                                          "status_abweichungen", "k1_abweichungen")}, ensure_ascii=False))
 
 
 # ---------------------------------------------------------------- Kreuzvalidierung
@@ -557,7 +632,7 @@ def teil_report():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("teil", choices=["daten", "regress", "lauf", "report"])
+    ap.add_argument("teil", choices=["daten", "regress", "lauf", "report", "kriterien"])
     ap.add_argument("--budget", type=float, default=150)
     a = ap.parse_args()
     t0 = time.time()
@@ -567,6 +642,8 @@ def main():
         teil_regress(t0)
     elif a.teil == "lauf":
         teil_lauf(t0, a.budget)
+    elif a.teil == "kriterien":
+        teil_kriterien(t0)
     else:
         teil_report()
 

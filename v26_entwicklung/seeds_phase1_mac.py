@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""V2.6, Kriterium K3: Topicmodelle weiterer Seeds fuer Phase 1. Auf Bens Mac auszufuehren.
+"""V2.6, Kriterium K3: Topicmodelle weiterer Seeds fuer Phase 1 (Phase 2 nur in der Bestaetigung, 3.4). Auf Bens Mac.
 
 Rechnet UMAP und HDBSCAN mit den Parametern des berichteten Laufs v2.5 neu (config.py; Aufruf wie in
 step05_sensitivity.random_seed_stability), fuer die Seeds 0, 1, 7 und 2026 und auf den SBERT-Einbettungen des
 Referenzlaufs. Es wird nichts neu eingebettet und nichts aus dem Netz geladen. Vorab prueft ein Kontrolllauf mit
 Seed 42, ob die Umgebung die Referenzlabels reproduziert. Gespeichert werden je Seed nur die Labels und die
-reduzierten Einbettungen (.npy) sowie die Pruefdatei seeds_phase1.json; output_*/ und *.npy stehen in .gitignore.
+reduzierten Einbettungen (.npy) sowie die Pruefdatei seeds_phase<N>.json; output_*/ und *.npy stehen in .gitignore.
+Phase und Ausgabeordner waehlt phase.py (V26_PHASE); fuer Phase 1 ohne V26_AUSGABE wie bisher.
 
 Aufruf auf dem Mac, in der Python-Umgebung, mit der v2.5 gerechnet wurde (umap-learn, hdbscan):
     cd ".../F3_Prototyp/Weak_Signal_Membership_Pipeline_V2.6/v26_entwicklung"
     python3 seeds_phase1_mac.py
+Fuer Phase 2 (nur in der Bestaetigung, nach 'bestaetigung.py start'):
+    V26_PHASE=2 V26_GETAGGT=v2.6-frozen python3 seeds_phase1_mac.py
 Laufzeit je Seed einige Minuten. Nach einem Abbruch setzt ein erneuter Aufruf beim fehlenden Seed fort.
 """
 import json
@@ -26,10 +29,12 @@ import pandas as pd
 HIER = Path(__file__).resolve().parent
 V26 = HIER.parent
 sys.path.insert(0, str(V26))
+sys.path.insert(0, str(HIER))
 import config  # noqa: E402
+import phase as phs  # noqa: E402  (Phasenschalter, Protokoll 3; Phase 1 wie bisher)
 
-REF = V26 / "output_neulauf_v2.5" / "prior" / "output_phase1"
-OUT = V26 / "output_v26_seeds" / "phase1"
+REF = phs.REF
+OUT = phs.ordner("output_v26_seeds/phase1", "seeds")
 SEEDS = [0, 1, 7, 2026]
 KONTROLLE = 42
 
@@ -55,12 +60,14 @@ def main():
     from sklearn.metrics import adjusted_rand_score, v_measure_score
 
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(REF / "model_results.pkl", "rb") as f:
+    with open(phs.lies(REF / "model_results.pkl", "Einbettungen und Labels des berichteten Laufs"), "rb") as f:
         md = pickle.load(f)
     emb = np.asarray(md["embeddings_sbert"])
     basis = np.asarray(md["labels"])
-    v25 = pd.read_csv(REF / "sensitivity_seeds.csv").set_index("seed")
-    pfad = OUT / "seeds_phase1.json"
+    f_v25 = REF / "sensitivity_seeds.csv"
+    v25 = (pd.read_csv(phs.lies(f_v25, "Seed-Laeufe des berichteten Laufs (Vergleich)")).set_index("seed")
+           if f_v25.exists() else pd.DataFrame({"seed": [], "n_topics": [], "n_noise": [], "ari": []}).set_index("seed"))
+    pfad = OUT / f"seeds_{phs.P}.json"
     res = json.loads(pfad.read_text(encoding="utf-8")) if pfad.exists() else {"seeds": {}}
     res["versionen"] = {p: version(p) for p in ("umap-learn", "hdbscan", "numba", "pynndescent", "numpy",
                                                 "scikit-learn", "scipy")}
@@ -74,8 +81,15 @@ def main():
     res["referenz"] = {"n_dok": int(len(basis)), "n_topics": int(len(set(basis[basis >= 0].tolist()))),
                        "n_rauschen": int((basis < 0).sum())}
 
-    def schreibe():
-        pfad.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    def schreibe():  # erst vollstaendig schreiben, dann ersetzen
+        tmp = pfad.with_name(pfad.name + ".tmp")
+        tmp.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(pfad)
+
+    def speichere(name, arr):
+        tmp = OUT / (name + ".tmp.npy")
+        np.save(tmp, arr)
+        tmp.replace(OUT / (name + ".npy"))
 
     def pruefe(seed, lab, sekunden):
         z = {"n_topics": int(len(set(lab[lab >= 0].tolist()))), "n_rauschen": int((lab < 0).sum()),
@@ -91,8 +105,8 @@ def main():
     if "kontrolle_seed42" not in res:
         t0 = time.time()
         red, lab = modell(emb, KONTROLLE)
-        np.save(OUT / "labels_seed42_kontrolle.npy", lab)
-        np.save(OUT / "reduziert_seed42_kontrolle.npy", red)
+        speichere("labels_seed42_kontrolle", lab)
+        speichere("reduziert_seed42_kontrolle", red)
         z = pruefe(KONTROLLE, lab, round(time.time() - t0, 1))
         z["labels_gleich_referenz"] = bool(np.array_equal(lab, basis))
         res["kontrolle_seed42"] = z
@@ -108,8 +122,8 @@ def main():
             continue
         t0 = time.time()
         red, lab = modell(emb, s)
-        np.save(OUT / f"labels_seed{s}.npy", lab)
-        np.save(OUT / f"reduziert_seed{s}.npy", red)
+        speichere(f"labels_seed{s}", lab)
+        speichere(f"reduziert_seed{s}", red)
         res["seeds"][str(s)] = pruefe(s, lab, round(time.time() - t0, 1))
         schreibe()
         z = res["seeds"][str(s)]

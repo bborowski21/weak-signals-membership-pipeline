@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""V2.6, Phase 1: EO4 A1 aus den Zertifiziertheitswerten, Abgleich mit Bens Pruefblatt und K3 (Stabilitaet ueber Seeds).
+"""V2.6: EO4 A1 aus den Zertifiziertheitswerten, Abgleich mit Bens Pruefblatt und K3 (Stabilitaet ueber Seeds).
+
+Entwickelt auf Phase 1; auf Phase 2 nur in der Bestaetigung (3.4) mit dem Phasenschalter phase.py, dort ohne Pruefblatt,
+Rarefaktion und K7. Fuer Phase 1 ohne V26_AUSGABE aendert der Schalter nichts.
 
 Vorgaben laut Protokoll, Eintrag vom 17.10.2026 vor den Daten (Abschnitt Aenderungen, Punkte a bis c). Gelesen werden
 nur abgeleitete Groessen: Modellwerte je Satz und Satzmerkmale aus output_v26_zertifiziertheit/phase1
 (zertifiziertheit_mac.py), Labels und reduzierte Einbettungen weiterer Seeds aus output_v26_seeds/phase1
 (seeds_phase1_mac.py) und die Zwischenstaende von backtest_kandidaten.py, dessen Funktionen unveraendert verwendet
 werden. Vom Pruefblatt zaehlen nur die Spalten nr und bewertung_1_bis_6; Satztexte werden weder ausgegeben noch
-gespeichert. Ausgegeben werden nur Guetemasse und Werte je Topic, keine Zugehoerigkeiten. Phase 2 wird nicht gelesen.
+gespeichert. Ausgegeben werden nur Guetemasse und Werte je Topic, keine Zugehoerigkeiten.
 
 Aufruf (im Ordner v26_entwicklung):
   python3 auswertung_eo4_k3.py eo4          EO4 A1 und A1R je Dokument und Topic: Referenz, 180 Pseudokorpora, K7
@@ -39,8 +42,9 @@ sys.path.insert(0, str(HIER))
 import backtest_kandidaten as bk  # noqa: E402  (Funktionen, Pseudokorpora und Zwischenstaende unveraendert)
 
 bt = bk.bt
-ZERT = Path(os.environ.get("V26_ZERT", str(bt.V26 / "output_v26_zertifiziertheit" / "phase1")))
-SEEDS = Path(os.environ.get("V26_SEEDS", str(bt.V26 / "output_v26_seeds" / "phase1")))
+phs = bt.phs
+ZERT = Path(os.environ.get("V26_ZERT", str(phs.ordner("output_v26_zertifiziertheit/phase1", "zertifiziertheit"))))
+SEEDS = Path(os.environ.get("V26_SEEDS", str(phs.ordner("output_v26_seeds/phase1", "seeds"))))
 AUS = Path(os.environ.get("V26_AUSWERTUNG", str(bk.OUT)))
 OUT_EO4 = AUS / "eo4"
 OUT_K3 = AUS / "k3"
@@ -181,7 +185,7 @@ def lies_mit_eo4(name):
 def teil_eo4(t0):
     labels = bk.lade_labels()
     x, info = eo4_dokumente(len(labels))
-    lauf = ZERT / "zertifiziertheit_phase1.json"
+    lauf = ZERT / f"zertifiziertheit_{phs.P}.json"
     if lauf.exists():
         z_l = json.loads(lauf.read_text(encoding="utf-8"))
         sha = z_l.get("modell_sha16", {}).get("pytorch_model.bin")
@@ -207,16 +211,16 @@ def teil_eo4(t0):
     topicwerte(x, np.arange(len(labels)), labels).to_csv(OUT_EO4 / "referenz.csv")
     n = 0
     for name, keep, lab, _ in bk.pseudokorpora():
-        topicwerte(x, keep, lab).to_csv(OUT_EO4 / f"{name}.csv")
+        phs.csv_atomar(topicwerte(x, keep, lab), OUT_EO4 / f"{name}.csv")
         n += 1
-    for seed in bk.K7_SEEDS:  # dieselben Mischungen wie backtest_kandidaten.teil_k7
+    for seed in (bk.K7_SEEDS if phs.K7 else ()):  # dieselben Mischungen wie backtest_kandidaten.teil_k7
         lab = labels.copy()
         for a, b in pd.read_csv(bk.OUT / f"k7_s{seed}_paare.csv").itertuples(index=False):
             lab[labels == b] = a
         topicwerte(x, np.arange(len(labels)), lab).to_csv(OUT_EO4 / f"k7_s{seed}.csv")
     info["pseudokorpora"] = n
     (OUT_EO4 / "eo4_info.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
-    uhr(t0, f"EO4 A1 und A1R: Referenz, {n} Pseudokorpora und {len(bk.K7_SEEDS)} K7-Aufteilungen geschrieben")
+    uhr(t0, f"EO4 A1 und A1R: Referenz, {n} Pseudokorpora und {len(bk.K7_SEEDS) if phs.K7 else 0} K7-Aufteilungen geschrieben")
     print(json.dumps(info, ensure_ascii=False))
 
 
@@ -237,7 +241,7 @@ def teil_eo4report():
     splits = sorted({p.stem.split("_")[1] for p in OUT_EO4.glob("split_r*_B.csv")})
     rares = sorted(p.stem for p in OUT_EO4.glob(f"rare_m{bk.M_RARE}_r*.csv"))
     nulls = sorted(p.stem for p in OUT_EO4.glob("null_r*.csv"))
-    if (len(splits), len(rares), len(nulls)) != (50, 30, 50):
+    if (len(splits), len(rares), len(nulls)) != (50, phs.RARE_N, 50):
         raise SystemExit(f"Pseudokorpora unvollstaendig: {len(splits)} Teilungen, {len(rares)} Rarefaktion, {len(nulls)} Null")
     kand = pd.read_csv(bk.OUT / "kandidaten_kennzahlen.csv").set_index("Code")
     alt_rang, rang = bt.lies("referenz").rank(), ref.rank()
@@ -276,7 +280,7 @@ def teil_eo4report():
     sg = {c: float(ref_roh[c].std(ddof=0)) for c in teile}
     sd = {c: float(ref[c].std()) for c in codes}
     k7 = []
-    for seed in bk.K7_SEEDS:
+    for seed in (bk.K7_SEEDS if phs.K7 else ()):
         mix = pd.read_csv(OUT_EO4 / f"k7_s{seed}.csv", index_col=0)
         a2 = bk.lies_k(f"k7_s{seed}_kand")["EO4_A2"].reindex(mix.index)
         mix[R3] = ((mix["EO4_A1"] - mu["EO4_A1"]) / sg["EO4_A1"] + (a2 - mu["EO4_A2"]) / sg["EO4_A2"]) / 2
@@ -290,14 +294,15 @@ def teil_eo4report():
                     continue
                 gm = (na * va + nb * vb) / (na + nb)
                 k7.append({"seed": seed, "code": code, "abweichung_sd": (vm - gm) / sd[code]})
-    k7 = pd.DataFrame(k7)
+    k7 = pd.DataFrame(k7, columns=["seed", "code", "abweichung_sd"])
     k7_erg = {}
     for code, g in k7.groupby("code"):
         anteil = float((g["abweichung_sd"].abs() <= K7_SD).mean())
         k7_erg[code] = {"mischungen": int(len(g)), "anteil_erfuellt": runde(anteil), "erfuellt": anteil >= K7_ANTEIL,
                         "median_abweichung_sd": runde(g["abweichung_sd"].median())}
-    tab["K7_anteil"] = tab["Code"].map(lambda c: k7_erg[c]["anteil_erfuellt"])
-    tab["S_K7"] = tab["Code"].map(lambda c: "erfuellt" if k7_erg[c]["erfuellt"] else "verfehlt")
+    if phs.K7:
+        tab["K7_anteil"] = tab["Code"].map(lambda c: k7_erg[c]["anteil_erfuellt"])
+        tab["S_K7"] = tab["Code"].map(lambda c: "erfuellt" if k7_erg[c]["erfuellt"] else "verfehlt")
     innen = {"A1_A2": runde(bk.rho(ref["EO4_A1"], ref["EO4_A2"])), "A1_A1R": runde(bk.rho(ref["EO4_A1"], ref["EO4_A1R"])),
              "R3_A1": runde(bk.rho(ref[R3], ref["EO4_A1"])), "R3_A2": runde(bk.rho(ref[R3], ref["EO4_A2"])),
              "A1_EO5_A1": runde(bk.rho(ref["EO4_A1"], ref["EO5_A1"]))}
@@ -317,7 +322,7 @@ def teil_eo4report():
                "K4_rare_rho_logn", "K5_null_r2", "K5_anteil_ses_ueber_2", "K6_max_abs_rho", "K6_partner", "K7_anteil",
                "S_alle"]
     with pd.option_context("display.width", 250, "display.max_columns", 30):
-        print(tab[spalten].to_string(index=False))
+        print(tab[[c for c in spalten if c in tab.columns]].to_string(index=False))
     print(json.dumps({"k7": k7_erg, "korrelationen_im_platz": innen}, ensure_ascii=False))
 
 
@@ -356,7 +361,8 @@ def teil_vermerke():
                       "entfernte_woerter": int((wo[mit] - n[mit]).sum()), "entfernte_hedges": int((f["hedge"][mit] - h[mit]).sum()),
                       "neu_unter_20_woertern": int(((wo >= bk.MIN_ABSTRACT) & (n < bk.MIN_ABSTRACT)).sum()),
                       "gegenprobe_ohne_vermerk_abweichend": int(abweichend),
-                      "vermerke_in_blatt1": int(flag[np.load(ZERT / "pruefblatt_index.npy")].sum()),
+                      "vermerke_in_blatt1": int(flag[np.load(ZERT / "pruefblatt_index.npy")].sum())
+                      if (ZERT / "pruefblatt_index.npy").exists() else None,
                       "vermerke_in_blatt2": int(flag[np.load(ZERT / "pruefblatt2_index.npy")].sum())
                       if (ZERT / "pruefblatt2_index.npy").exists() else None}, ensure_ascii=False))
 
@@ -481,7 +487,7 @@ def seed_dateien(s):
 
 
 def ref_gleich():
-    return bool(json.loads((SEEDS / "seeds_phase1.json").read_text(encoding="utf-8"))["kontrolle_seed42"]
+    return bool(json.loads((SEEDS / f"seeds_{phs.P}.json").read_text(encoding="utf-8"))["kontrolle_seed42"]
                 ["labels_gleich_referenz"])
 
 
@@ -498,9 +504,11 @@ def teil_k3(t0, budget):
     red_ref = K.red
     OUT_K3.mkdir(parents=True, exist_ok=True)
     fertig = 0
+    letzte = 0.0  # Dauer des letzten Seeds: keinen mehr beginnen, der das Budget sprengen wuerde
     for s in offen:
-        if fertig and time.time() - t0 > budget:
+        if fertig and time.time() - t0 + letzte > budget:
             break
+        t_s = time.time()
         f_lab, f_red = seed_dateien(s)
         lab, red = np.load(f_lab).astype(np.int64), np.load(f_red)
         if not len(lab) == len(red) == len(K.labels):
@@ -513,8 +521,9 @@ def teil_k3(t0, budget):
             K.red = red_ref
         for col in bt.NAN_MOEGLICH:
             best.loc[fehlt[col], col] = np.nan
-        kand.to_csv(OUT_K3 / f"seed{s}_kand.csv")
-        best.to_csv(OUT_K3 / f"seed{s}_best.csv")
+        phs.csv_atomar(kand, OUT_K3 / f"seed{s}_kand.csv")
+        phs.csv_atomar(best, OUT_K3 / f"seed{s}_best.csv")
+        letzte = time.time() - t_s
         fertig += 1
         uhr(t0, f"Seed {s} fertig: {len(kand)} Topics")
     rest = [s for s in noetig if not (OUT_K3 / f"seed{s}_best.csv").exists()]
@@ -582,8 +591,10 @@ def teil_k3report():
         k3[c] = {"rho_je_seed": r, "mittel": runde(mittel), "min": runde(min(werte)) if werte else None,
                  "max": runde(max(werte)) if werte else None, "seeds": len(werte),
                  "erfuellt": None if mittel is None else bool(mittel >= K3_SCHWELLE)}
-    folgen = folgen_k3(k3)
-    folgen["max_abs_rho_satz_mit_k3"] = max_rho(folgen["satz_mit_k3"], ref_kand, ref_best)
+    folgen = None
+    if phs.ENTWICKLUNG:  # Folgen fuer die Auswahl nur in der Entwicklung; in der Bestaetigung ist die Auswahl fest (3.1)
+        folgen = folgen_k3(k3)
+        folgen["max_abs_rho_satz_mit_k3"] = max_rho(folgen["satz_mit_k3"], ref_kand, ref_best)
     erg = {"referenz": "berichteter Lauf" if ref_ist_bericht else "Kontrolllauf Seed 42", "je_seed": je_seed,
            "k3": k3, "folgen": folgen, "schwellen": {"jaccard": K3_JACCARD, "rho_mittel": K3_SCHWELLE}}
     (AUS / "k3_ergebnis.json").write_text(json.dumps(erg, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -592,7 +603,8 @@ def teil_k3report():
                "K3": v["erfuellt"]} for c, v in k3.items()]
     with pd.option_context("display.width", 200, "display.max_rows", 100):
         print(pd.DataFrame(zeilen).to_string(index=False))
-    print(json.dumps(folgen, ensure_ascii=False, indent=1))
+    if folgen is not None:
+        print(json.dumps(folgen, ensure_ascii=False, indent=1))
 
 
 # ---------------------------------------------------------------- Folgen fuer die Auswahl (Eintrag vom 17.10., Punkt c)
